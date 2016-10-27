@@ -9,14 +9,13 @@ import (
 	"github.com/emersion/go-imap-pgp/openpgp"
 )
 
-func decryptMessage(r io.Reader) (io.Reader, error) {
+func decryptMessage(kr openpgp.KeyRing, r io.Reader) (io.Reader, error) {
 	m, err := mail.ReadMessage(r)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: set keyring
-	m, err = openpgp.DecryptMessage(nil, m)
+	m, err = openpgp.DecryptMessage(kr, m)
 	if err != nil {
 		return nil, err
 	}

@@ -20,7 +20,8 @@ func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch
 	go func() {
 		for msg := range messages {
 			for part, r := range msg.Body {
-				r, err := decryptMessage(r)
+				// TODO: set keyring
+				r, err := decryptMessage(nil, r)
 				if err != nil {
 					log.Println("WARN: cannot decrypt part:", err)
 					continue
