@@ -11,6 +11,8 @@ import (
 
 type mailbox struct {
 	backend.Mailbox
+
+	u *user
 }
 
 func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch chan<- *imap.Message) error {
@@ -20,8 +22,7 @@ func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch
 	go func() {
 		for msg := range messages {
 			for part, r := range msg.Body {
-				// TODO: set keyring
-				r, err := decryptMessage(nil, r)
+				r, err := decryptMessage(m.u.kr, r)
 				if err != nil {
 					log.Println("WARN: cannot decrypt part:", err)
 					continue
