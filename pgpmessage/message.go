@@ -56,15 +56,23 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 					continue
 				}
 			}
+
+			pw.Close()
 		}()
 
 		return message.NewPart(p.Header, pr), nil
 	} else {
 		// A normal part, just decrypt it
 
-		disp, _, err := mime.ParseMediaType(p.Header.Get("Content-Disposition"))
-		if err != nil {
-			log.Println("WARN: cannot parse Content-Disposition:", err)
+		disp := p.Header.Get("Content-Disposition")
+		if disp != "" {
+			var err error
+			disp, _, err = mime.ParseMediaType(disp)
+			if err != nil {
+				log.Println("WARN: cannot parse Content-Disposition:", err)
+			}
+		}
+		if disp == "" {
 			disp = "attachment"
 		}
 
