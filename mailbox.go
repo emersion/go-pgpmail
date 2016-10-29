@@ -25,6 +25,11 @@ func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch
 
 		for msg := range messages {
 			for part, r := range msg.Body {
+				// Cannot decrypt parts without headers
+				if part.Specifier != imap.EntireSpecifier {
+					continue
+				}
+
 				r, err := decryptMessage(m.u.kr, r)
 				if err != nil {
 					log.Println("WARN: cannot decrypt part:", err)

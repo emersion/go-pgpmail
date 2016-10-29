@@ -41,7 +41,7 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 
 				p, err = DecryptPart(p, kr)
 				if err != nil {
-					log.Println("WARN: cannot decrypt part:", err)
+					log.Println("WARN: cannot decrypt child part:", err)
 					continue
 				}
 
@@ -52,8 +52,8 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 				}
 
 				if _, err := io.Copy(w, p); err != nil {
-					pw.CloseWithError(err)
-					return
+					log.Println("WARN: cannot decrypt child part:", err)
+					continue
 				}
 			}
 		}()
