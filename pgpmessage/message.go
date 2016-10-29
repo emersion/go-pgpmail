@@ -75,6 +75,10 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 		} else if strings.HasPrefix(mediaType, "text/") && disp != "attachment" {
 			// The message text, maybe encrypted with inline PGP
 			md, err = decryptArmored(p, kr)
+		} else {
+			// An unencrypted binary part
+			md = &openpgp.MessageDetails{UnverifiedBody: p}
+			err = nil
 		}
 		if err != nil {
 			return nil, err
