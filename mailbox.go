@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"log"
+	"time"
 
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/backend"
@@ -42,4 +43,13 @@ func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch
 	}()
 
 	return m.Mailbox.ListMessages(uid, seqSet, items, messages)
+}
+
+func (m *mailbox) CreateMessage(flags []string, date time.Time, r imap.Literal) error {
+	b := &bytes.Buffer{}
+	if err := encryptMessage(m.u.kr, b, r); err != nil {
+		return err
+	}
+
+	return m.Mailbox.CreateMessage(flags, date, b)
 }

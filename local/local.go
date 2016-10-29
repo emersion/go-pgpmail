@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
-func Unlock(username, _ string) (openpgp.KeyRing, error) {
+func Unlock(username, _ string) (openpgp.EntityList, error) {
 	cmd := exec.Command("gpg", "--export-secret-keys")
 
 	b := &bytes.Buffer{}

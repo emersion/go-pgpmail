@@ -3,13 +3,13 @@ package pgp
 import (
 	"github.com/emersion/go-imap/backend"
 
-	"github.com/emersion/go-imap-pgp/openpgp"
+	"golang.org/x/crypto/openpgp"
 )
 
 type user struct {
 	backend.User
 
-	kr openpgp.KeyRing
+	kr openpgp.EntityList
 }
 
 func (u *user) getMailbox(m backend.Mailbox) *mailbox {
