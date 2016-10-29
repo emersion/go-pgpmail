@@ -1,13 +1,11 @@
 package message
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
-	"mime/quotedprintable"
 	"net/textproto"
 	"sort"
 	"strings"
@@ -31,30 +29,13 @@ func writeHeader(w io.Writer, header textproto.MIMEHeader) error {
 	return err
 }
 
-type nopWriteCloser struct {
-	io.Writer
-}
-
-func (wc *nopWriteCloser) Close() error {
-	return nil
-}
 
 func CreatePart(w io.Writer, header textproto.MIMEHeader) (io.WriteCloser, error) {
-	var wc io.WriteCloser
-	switch header.Get("Content-Transfer-Encoding") {
-	case "quoted-printable":
-		wc = quotedprintable.NewWriter(w)
-	case "base64":
-		wc = base64.NewEncoder(base64.StdEncoding, w)
-	default:
-		wc = &nopWriteCloser{w}
-	}
-
 	if err := writeHeader(w, header); err != nil {
 		return nil, err
 	}
 
-	return wc, nil
+	return encodeEncoding(w, header.Get("Content-Transfer-Encoding")), nil
 }
 
 func CreateMultipart(w io.Writer, header textproto.MIMEHeader) (*multipart.Writer, error) {

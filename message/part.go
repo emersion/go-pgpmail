@@ -2,11 +2,9 @@ package message
 
 import (
 	"bufio"
-	"encoding/base64"
 	"io"
 	"mime"
 	"mime/multipart"
-	"mime/quotedprintable"
 	"net/textproto"
 	"strings"
 )
@@ -15,18 +13,28 @@ type Part struct {
 	io.Reader
 
 	Header textproto.MIMEHeader
+
+	mediaType string
+	mediaParams map[string]string
 }
 
-func NewPart(h textproto.MIMEHeader, r io.Reader) *Part {
-	switch h.Get("Content-Transfer-Encoding") {
-	case "quoted-printable":
-		r = quotedprintable.NewReader(r)
-	case "base64":
-		r = base64.NewDecoder(base64.StdEncoding, r)
-	}
-	h.Del("Content-Transfer-Encoding")
+func NewPart(header textproto.MIMEHeader, r io.Reader) *Part {
+	r = decodeEncoding(r, header.Get("Content-Transfer-Encoding"))
+	header.Del("Content-Transfer-Encoding")
 
-	return &Part{r, h}
+	mediaType, mediaParams, _ := mime.ParseMediaType(header.Get("Content-Type"))
+	if charset, ok := mediaParams["charset"]; ok {
+		r = decodeCharset(r, charset)
+		mediaParams["charset"] = "utf-8"
+		header.Set("Content-Type", mime.FormatMediaType(mediaType, mediaParams))
+	}
+
+	return &Part{
+		Reader: r,
+		Header: header,
+		mediaType: mediaType,
+		mediaParams: mediaParams,
+	}
 }
 
 func ReadPart(r io.Reader) (*Part, error) {
@@ -40,10 +48,9 @@ func ReadPart(r io.Reader) (*Part, error) {
 }
 
 func (p *Part) ChildrenReader() *Reader {
-	t, params, _ := mime.ParseMediaType(p.Header.Get("Content-Type"))
-	if !strings.HasPrefix(t, "multipart/") {
+	if !strings.HasPrefix(p.mediaType, "multipart/") {
 		return nil
 	}
 
-	return &Reader{multipart.NewReader(p, params["boundary"])}
+	return &Reader{multipart.NewReader(p, p.mediaParams["boundary"])}
 }
