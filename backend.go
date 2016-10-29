@@ -4,9 +4,10 @@ import (
 	"github.com/emersion/go-imap/backend"
 
 	"github.com/emersion/go-imap-pgp/openpgp"
+	openpgp_ "golang.org/x/crypto/openpgp"
 )
 
-type UnlockFunction func(username, password string) (openpgp.KeyRing, error)
+type UnlockFunction func(username, password string) (openpgp_.KeyRing, error)
 
 type Backend struct {
 	backend.Backend
@@ -24,6 +25,6 @@ func (be *Backend) Login(username, password string) (backend.User, error) {
 	} else if kr, err := be.unlock(username, password); err != nil {
 		return nil, err
 	} else {
-		return &user{u, kr}, nil
+		return &user{u, openpgp.KeyRing(kr)}, nil
 	}
 }
