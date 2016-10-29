@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	be := pgp.New(proxy.NewTLS("mail.gandi.net:993", nil), local.Unlock)
+	be := pgp.New(proxy.NewTLS("mail.gandi.net:993", nil), pgp.UnlockRemember(local.Unlock))
 
 	// Create a new server
 	s := server.New(be)

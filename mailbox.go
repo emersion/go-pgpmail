@@ -21,6 +21,8 @@ func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch
 
 	messages := make(chan *imap.Message)
 	go func() {
+		defer close(ch)
+
 		for msg := range messages {
 			for part, r := range msg.Body {
 				r, err := decryptMessage(m.u.kr, r)

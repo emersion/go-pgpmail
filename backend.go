@@ -8,6 +8,23 @@ import (
 
 type UnlockFunction func(username, password string) (openpgp.EntityList, error)
 
+func UnlockRemember(f UnlockFunction) UnlockFunction {
+	cache := map[string]openpgp.EntityList{}
+	return func(username, password string) (openpgp.EntityList, error) {
+		if kr, ok := cache[username]; ok {
+			return kr, nil
+		}
+
+		kr, err := f(username, password)
+		if err != nil {
+			return nil, err
+		}
+
+		cache[username] = kr
+		return kr, nil
+	}
+}
+
 type Backend struct {
 	backend.Backend
 
