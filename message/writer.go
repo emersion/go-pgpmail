@@ -49,8 +49,8 @@ func CreateMultipart(w io.Writer, header textproto.MIMEHeader) (*multipart.Write
 		mw.SetBoundary(mediaParams["boundary"])
 	} else {
 		mediaParams["boundary"] = mw.Boundary()
+		header.Set("Content-Type", mime.FormatMediaType(mediaType, mediaParams))
 	}
-	header.Set("Content-Type", mime.FormatMediaType(mediaType, mediaParams))
 
 	header.Del("Content-Transfer-Encoding")
 	w, err := CreatePart(w, header)
