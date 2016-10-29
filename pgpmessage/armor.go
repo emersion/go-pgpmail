@@ -1,6 +1,7 @@
 package pgpmessage
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 
@@ -14,15 +15,23 @@ const pgpMessageType = "PGP MESSAGE"
 var armorTag = []byte("-----BEGIN "+pgpMessageType+"-----")
 
 func decryptArmored(in io.Reader, kr openpgp.KeyRing) (*openpgp.MessageDetails, error) {
-	// TODO: check newline after armorTag
-	b := make([]byte, len(armorTag))
-	if _, err := io.ReadAtLeast(in, b, len(b)); err != nil {
-		// TODO: handle io.EOF here
-		return nil, err
+	br := bufio.NewReaderSize(in, len(armorTag))
+
+	// Read all empty lines at the begining
+	var line []byte
+	var isPrefix bool
+	for len(line) == 0 {
+		var err error
+		line, isPrefix, err = br.ReadLine()
+		if err != nil {
+			return nil, err
+		}
+
+		line = bytes.TrimSpace(line)
 	}
 
-	in = io.MultiReader(bytes.NewReader(b), in)
-	if !bytes.Equal(b, armorTag) {
+	in = io.MultiReader(bytes.NewReader(append(line, '\n')), in)
+	if !isPrefix || !bytes.Equal(line, armorTag) {
 		// Not encrypted
 		return &openpgp.MessageDetails{UnverifiedBody: in}, nil
 	}
@@ -32,12 +41,7 @@ func decryptArmored(in io.Reader, kr openpgp.KeyRing) (*openpgp.MessageDetails, 
 		return nil, err
 	}
 
-	md, err := decrypt(block.Body, kr)
-	if err != nil {
-		return nil, err
-	}
-
-	return md, nil
+	return decrypt(block.Body, kr)
 }
 
 // An io.WriteCloser that both encrypts and armors data.

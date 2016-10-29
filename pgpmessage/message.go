@@ -64,23 +64,11 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 	} else {
 		// A normal part, just decrypt it
 
-		disp := p.Header.Get("Content-Disposition")
-		if disp != "" {
-			var err error
-			disp, _, err = mime.ParseMediaType(disp)
-			if err != nil {
-				log.Println("WARN: cannot parse Content-Disposition:", err)
-			}
-		}
-		if disp == "" {
-			disp = "attachment"
-		}
-
 		var md *openpgp.MessageDetails
 		if mediaType == "application/pgp-encrypted" {
 			// An encrypted binary part
 			md, err = decrypt(p, kr)
-		} else if strings.HasPrefix(mediaType, "text/") && disp != "attachment" {
+		} else if strings.HasPrefix(mediaType, "text/") {
 			// The message text, maybe encrypted with inline PGP
 			md, err = decryptArmored(p, kr)
 		} else {
