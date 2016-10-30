@@ -4,7 +4,6 @@ import (
 	"io"
 	"log"
 	"mime"
-	"mime/multipart"
 	"strings"
 
 	"github.com/emersion/go-imap-pgp/message"
@@ -12,21 +11,16 @@ import (
 )
 
 func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
-	mediaType, mediaParams, err := mime.ParseMediaType(p.Header.Get("Content-Type"))
-	if err != nil {
-		log.Println("WARN: cannot parse Content-Type:", err)
-		mediaType = "text/plain"
-	}
-
 	mr := p.ChildrenReader()
 	if mr != nil {
 		// This is a multipart part, parse and decrypt each part
 
 		pr, pw := io.Pipe()
 
+		var mw *message.Writer
+		p.Header, mw = message.NewWriter(pw, p.Header)
+
 		go func() {
-			mw := multipart.NewWriter(pw)
-			mw.SetBoundary(mediaParams["boundary"])
 			defer mw.Close()
 
 			for {
@@ -45,16 +39,18 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 					continue
 				}
 
-				w, err := mw.CreatePart(p.Header)
+				wc, err := mw.CreateChild(p.Header)
 				if err != nil {
 					pw.CloseWithError(err)
 					return
 				}
 
-				if _, err := io.Copy(w, p); err != nil {
+				if _, err := io.Copy(wc, p); err != nil {
 					log.Println("WARN: cannot decrypt child part:", err)
 					continue
 				}
+
+				wc.Close()
 			}
 
 			pw.Close()
@@ -64,11 +60,19 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 	} else {
 		// A normal part, just decrypt it
 
+		mediaType, _, err := mime.ParseMediaType(p.Header.Get("Content-Type"))
+		if err != nil {
+			log.Println("WARN: cannot parse Content-Type:", err)
+			mediaType = "text/plain"
+		}
+
+		isPlainText := strings.HasPrefix(mediaType, "text/")
+
 		var md *openpgp.MessageDetails
 		if mediaType == "application/pgp-encrypted" {
 			// An encrypted binary part
 			md, err = decrypt(p, kr)
-		} else if strings.HasPrefix(mediaType, "text/") {
+		} else if isPlainText {
 			// The message text, maybe encrypted with inline PGP
 			md, err = decryptArmored(p, kr)
 		} else {
@@ -80,22 +84,28 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 			return nil, err
 		}
 
-		return message.NewPart(p.Header, md.UnverifiedBody), nil
+		p := message.NewPart(p.Header, md.UnverifiedBody)
+		if isPlainText {
+			p.Header.Set("Content-Transfer-Encoding", "quoted-printable")
+		} else {
+			p.Header.Set("Content-Transfer-Encoding", "base64")
+		}
+		return p, nil
 	}
 
 	return p, nil
 }
 
 func EncryptPart(w io.Writer, p *message.Part, to []*openpgp.Entity, signed *openpgp.Entity) error {
+	mw, err := message.CreateWriter(w, p.Header)
+	if err != nil {
+		return err
+	}
+	defer mw.Close()
+
 	mr := p.ChildrenReader()
 	if mr != nil {
 		// This is a multipart part, parse and encrypt each part
-
-		mw, err := message.CreateMultipart(w, p.Header)
-		if err != nil {
-			return err
-		}
-		defer mw.Close()
 
 		for {
 			p, err := mr.NextPart()
@@ -106,14 +116,16 @@ func EncryptPart(w io.Writer, p *message.Part, to []*openpgp.Entity, signed *ope
 				return err
 			}
 
-			w, err := mw.CreatePart(p.Header)
+			wc, err := mw.CreateChild(p.Header)
 			if err != nil {
 				return err
 			}
 
-			if err := EncryptPart(w, p, to, signed); err != nil {
+			if err := EncryptPart(wc, p, to, signed); err != nil {
 				return err
 			}
+
+			wc.Close()
 		}
 	} else {
 		// A normal part, just encrypt it
@@ -124,18 +136,12 @@ func EncryptPart(w io.Writer, p *message.Part, to []*openpgp.Entity, signed *ope
 			disp = "attachment"
 		}
 
-		w, err := message.CreatePart(w, p.Header)
-		if err != nil {
-			return err
-		}
-		defer w.Close()
-
 		var plaintext io.WriteCloser
 		if strings.HasPrefix(p.Header.Get("Content-Type"), "text/") && disp != "attachment" {
 			// The message text, encrypt it with inline PGP
-			plaintext, err = encryptArmored(w, to, signed)
+			plaintext, err = encryptArmored(mw, to, signed)
 		} else {
-			plaintext, err = encrypt(w, to, signed)
+			plaintext, err = encrypt(mw, to, signed)
 		}
 		if err != nil {
 			return err

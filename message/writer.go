@@ -29,34 +29,70 @@ func writeHeader(w io.Writer, header textproto.MIMEHeader) error {
 	return err
 }
 
+type Writer struct {
+	w io.Writer
+	c io.Closer
+	mw *multipart.Writer
+}
 
-func CreatePart(w io.Writer, header textproto.MIMEHeader) (io.WriteCloser, error) {
+func NewWriter(w io.Writer, header textproto.MIMEHeader) (textproto.MIMEHeader, *Writer) {
+	ww := &Writer{w: w}
+
+	mediaType, mediaParams, _ := mime.ParseMediaType(header.Get("Content-Type"))
+	if strings.HasPrefix(mediaType, "multipart/") {
+		ww.mw = multipart.NewWriter(ww.w)
+		ww.c = ww.mw
+
+		if mediaParams["boundary"] != "" {
+			ww.mw.SetBoundary(mediaParams["boundary"])
+		} else {
+			mediaParams["boundary"] = ww.mw.Boundary()
+			header.Set("Content-Type", mime.FormatMediaType(mediaType, mediaParams))
+		}
+
+		header.Del("Content-Transfer-Encoding")
+	} else {
+		wc := encodeEncoding(ww.w, header.Get("Content-Transfer-Encoding"))
+		ww.w = wc
+		ww.c = wc
+	}
+
+	return header, ww
+}
+
+func CreateWriter(w io.Writer, header textproto.MIMEHeader) (*Writer, error) {
+	header, ww := NewWriter(w, header)
+
 	if err := writeHeader(w, header); err != nil {
 		return nil, err
 	}
 
-	return encodeEncoding(w, header.Get("Content-Transfer-Encoding")), nil
+	return ww, nil
 }
 
-func CreateMultipart(w io.Writer, header textproto.MIMEHeader) (*multipart.Writer, error) {
-	mw := multipart.NewWriter(w)
+func (w *Writer) Write(b []byte) (int, error) {
+	return w.w.Write(b)
+}
 
-	mediaType, mediaParams, _ := mime.ParseMediaType(header.Get("Content-Type"))
-	if !strings.HasPrefix(mediaType, "multipart/") {
-		return nil, errors.New("invalid multipart MIME type")
-	}
-	if mediaParams["boundary"] != "" {
-		mw.SetBoundary(mediaParams["boundary"])
-	} else {
-		mediaParams["boundary"] = mw.Boundary()
-		header.Set("Content-Type", mime.FormatMediaType(mediaType, mediaParams))
+func (w *Writer) Close() error {
+	return w.c.Close()
+}
+
+func (w *Writer) CreateChild(header textproto.MIMEHeader) (*Writer, error) {
+	if w.mw == nil {
+		return nil, errors.New("cannot create a part in a non-multipart message")
 	}
 
-	header.Del("Content-Transfer-Encoding")
-	w, err := CreatePart(w, header)
+	// cw -> ww -> pw -> w.mw -> w.w
+
+	ww := &struct{io.Writer}{nil}
+	header, cw := NewWriter(ww, header)
+
+	pw, err := w.mw.CreatePart(header)
 	if err != nil {
 		return nil, err
 	}
 
-	return mw, nil
+	ww.Writer = pw
+	return cw, nil
 }

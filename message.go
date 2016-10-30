@@ -21,10 +21,18 @@ func decryptMessage(kr openpgp.KeyRing, r io.Reader) (io.Reader, error) {
 		return nil, err
 	}
 
-	b := bytes.Buffer{}
-	message.CreatePart(&b, p.Header)
+	b := &bytes.Buffer{}
+	mw, err := message.CreateWriter(b, p.Header)
+	if err != nil {
+		return nil, err
+	}
+	defer mw.Close()
 
-	return io.MultiReader(&b, p), nil
+	if _, err := io.Copy(mw, p); err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }
 
 func encryptMessage(kr openpgp.EntityList, w io.Writer, r io.Reader) error {

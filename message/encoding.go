@@ -5,6 +5,8 @@ import (
 	"io"
 	"mime/quotedprintable"
 	"strings"
+
+	"github.com/emersion/go-textwrapper"
 )
 
 func decodeEncoding(r io.Reader, enc string) io.Reader {
@@ -31,8 +33,10 @@ func encodeEncoding(w io.Writer, enc string) io.WriteCloser {
 	case "quoted-printable":
 		wc = quotedprintable.NewWriter(w)
 	case "base64":
-		wc = base64.NewEncoder(base64.StdEncoding, w)
-	default:
+		wc = base64.NewEncoder(base64.StdEncoding, textwrapper.NewRFC822(w))
+	case "7bit", "8bit":
+		wc = &nopWriteCloser{textwrapper.New(w, "\r\n", 1000)}
+	default: // "binary"
 		wc = &nopWriteCloser{w}
 	}
 	return wc
