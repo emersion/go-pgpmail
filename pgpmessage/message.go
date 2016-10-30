@@ -97,6 +97,8 @@ func DecryptPart(p *message.Part, kr openpgp.KeyRing) (*message.Part, error) {
 }
 
 func EncryptPart(w io.Writer, p *message.Part, to []*openpgp.Entity, signed *openpgp.Entity) error {
+	// TODO: this function should change headers (e.g. set MIME type to application/pgp-encrypted)
+
 	mw, err := message.CreateWriter(w, p.Header)
 	if err != nil {
 		return err
@@ -133,7 +135,6 @@ func EncryptPart(w io.Writer, p *message.Part, to []*openpgp.Entity, signed *ope
 		disp, _, err := mime.ParseMediaType(p.Header.Get("Content-Disposition"))
 		if err != nil {
 			log.Println("WARN: cannot parse Content-Disposition:", err)
-			disp = "attachment"
 		}
 
 		var plaintext io.WriteCloser
