@@ -1,6 +1,8 @@
 package pgp
 
 import (
+	"sync"
+
 	"github.com/emersion/go-imap/backend"
 
 	"golang.org/x/crypto/openpgp"
@@ -22,6 +24,16 @@ func UnlockRemember(f UnlockFunction) UnlockFunction {
 
 		cache[username] = kr
 		return kr, nil
+	}
+}
+
+func UnlockSync(f UnlockFunction) UnlockFunction {
+	locker := &sync.Mutex{}
+	return func(username, password string) (openpgp.EntityList, error) {
+		locker.Lock()
+		defer locker.Unlock()
+
+		return f(username, password)
 	}
 }
 
