@@ -1,16 +1,20 @@
+// Package imap provides a go-imap backend that encrypts and decrypts PGP
+// messages.
 package imap
 
 import (
 	"github.com/emersion/go-imap/backend"
+
+	"github.com/emersion/go-pgpmail"
 )
 
 type Backend struct {
 	backend.Backend
 
-	unlock UnlockFunction
+	unlock pgpmail.UnlockFunction
 }
 
-func New(be backend.Backend, unlock UnlockFunction) *Backend {
+func New(be backend.Backend, unlock pgpmail.UnlockFunction) *Backend {
 	return &Backend{be, unlock}
 }
 
