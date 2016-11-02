@@ -6,7 +6,7 @@ import (
 	"mime"
 	"strings"
 
-	"github.com/emersion/go-imap-pgp/message"
+	"github.com/emersion/go-pgpmail/message"
 	"golang.org/x/crypto/openpgp"
 )
 

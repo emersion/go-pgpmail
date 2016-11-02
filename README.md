@@ -16,8 +16,8 @@ import (
 
 	"github.com/emersion/go-imap/server"
 	"github.com/emersion/go-imap-proxy"
-	"github.com/emersion/go-imap-pgp"
-	"github.com/emersion/go-imap-pgp/local"
+	pgp "github.com/emersion/go-pgpmail/imap"
+	"github.com/emersion/go-pgpmail/local"
 )
 
 func main() {

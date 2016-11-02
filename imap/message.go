@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/crypto/openpgp"
 
-	"github.com/emersion/go-imap-pgp/message"
-	"github.com/emersion/go-imap-pgp/pgpmessage"
+	"github.com/emersion/go-pgpmail/message"
+	"github.com/emersion/go-pgpmail/pgpmessage"
 )
 
 func decryptMessage(kr openpgp.KeyRing, r io.Reader) (io.Reader, error) {
