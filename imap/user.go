@@ -1,4 +1,4 @@
-package pgp
+package imap
 
 import (
 	"github.com/emersion/go-imap/backend"
