@@ -7,12 +7,13 @@ import (
 
 	"github.com/emersion/go-imap/server"
 	"github.com/emersion/go-imap-proxy"
-	pgp "github.com/emersion/go-pgpmail/imap"
+	"github.com/emersion/go-pgpmail"
+	pgpimap "github.com/emersion/go-pgpmail/imap"
 	"github.com/emersion/go-pgpmail/local"
 )
 
 func main() {
-	be := pgp.New(proxy.NewTLS("mail.gandi.net:993", nil), pgp.UnlockRemember(local.Unlock))
+	be := pgpimap.New(proxy.NewTLS("mail.gandi.net:993", nil), pgpmail.UnlockRemember(pgpmail.UnlockSync(local.Unlock)))
 
 	// Create a new server
 	s := server.New(be)
@@ -21,7 +22,7 @@ func main() {
 	// authentication over unencrypted connections
 	s.AllowInsecureAuth = true
 
-	log.Println("Starting IMAP server at localhost:1143")
+	log.Println("Starting IMAP server at "+s.Addr)
 	if err := s.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
