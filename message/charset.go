@@ -2,6 +2,7 @@ package message
 
 import (
 	"io"
+	"fmt"
 	"strings"
 
 	"golang.org/x/text/encoding"
@@ -13,10 +14,14 @@ var charsets = map[string]encoding.Encoding{
 	"windows-1252": charmap.Windows1252,
 }
 
-func decodeCharset(r io.Reader, charset string) io.Reader {
-	if enc, ok := charsets[strings.ToLower(charset)]; ok {
-		r = enc.NewDecoder().Reader(r)
+// charsetReader returns an io.Reader that converts the provided charset to
+// UTF-8.
+func charsetReader(charset string, input io.Reader) (io.Reader, error) {
+	if strings.EqualFold("utf-8", charset) {
+		return input, nil
 	}
-
-	return r
+	if enc, ok := charsets[strings.ToLower(charset)]; ok {
+		return enc.NewDecoder().Reader(input), nil
+	}
+	return nil, fmt.Errorf("message: unhandled charset %q", charset)
 }

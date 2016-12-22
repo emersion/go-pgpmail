@@ -9,7 +9,7 @@ import (
 	"github.com/emersion/go-textwrapper"
 )
 
-func decodeEncoding(r io.Reader, enc string) io.Reader {
+func decode(enc string, r io.Reader) io.Reader {
 	switch strings.ToLower(enc) {
 	case "quoted-printable":
 		r = quotedprintable.NewReader(r)
@@ -27,7 +27,7 @@ func (wc *nopWriteCloser) Close() error {
 	return nil
 }
 
-func encodeEncoding(w io.Writer, enc string) io.WriteCloser {
+func encode(enc string, w io.Writer) io.WriteCloser {
 	var wc io.WriteCloser
 	switch strings.ToLower(enc) {
 	case "quoted-printable":

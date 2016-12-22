@@ -19,12 +19,15 @@ type Part struct {
 }
 
 func NewPart(header textproto.MIMEHeader, r io.Reader) *Part {
-	r = decodeEncoding(r, header.Get("Content-Transfer-Encoding"))
+	r = decode(header.Get("Content-Transfer-Encoding"), r)
 	header.Del("Content-Transfer-Encoding")
 
 	mediaType, mediaParams, _ := mime.ParseMediaType(header.Get("Content-Type"))
 	if charset, ok := mediaParams["charset"]; ok {
-		r = decodeCharset(r, charset)
+		if converted, err := charsetReader(charset, r); err == nil {
+			r = converted
+		}
+
 		mediaParams["charset"] = "utf-8"
 		header.Set("Content-Type", mime.FormatMediaType(mediaType, mediaParams))
 	}

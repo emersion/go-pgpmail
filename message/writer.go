@@ -52,7 +52,7 @@ func NewWriter(w io.Writer, header textproto.MIMEHeader) (textproto.MIMEHeader, 
 
 		header.Del("Content-Transfer-Encoding")
 	} else {
-		wc := encodeEncoding(ww.w, header.Get("Content-Transfer-Encoding"))
+		wc := encode(header.Get("Content-Transfer-Encoding"), ww.w)
 		ww.w = wc
 		ww.c = wc
 	}
