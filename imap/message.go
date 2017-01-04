@@ -34,7 +34,13 @@ func encryptMessage(kr openpgp.EntityList, w io.Writer, r io.Reader) error {
 		return err
 	}
 
-	if err := pgpmessage.EncryptEntity(w, e, kr, kr[0]); err != nil {
+	mw, err := message.CreateWriter(w, e.Header)
+	if err != nil {
+		return err
+	}
+	defer mw.Close()
+
+	if err := pgpmessage.EncryptEntity(mw, e, kr, kr[0]); err != nil {
 		return err
 	}
 

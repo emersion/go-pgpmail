@@ -69,14 +69,8 @@ func DecryptEntity(e *message.Entity, kr openpgp.KeyRing) (*message.Entity, erro
 	}
 }
 
-func EncryptEntity(w io.Writer, e *message.Entity, to []*openpgp.Entity, signed *openpgp.Entity) error {
+func EncryptEntity(mw *message.Writer, e *message.Entity, to []*openpgp.Entity, signed *openpgp.Entity) error {
 	// TODO: this function should change headers (e.g. set MIME type to application/pgp-encrypted)
-
-	mw, err := message.CreateWriter(w, e.Header)
-	if err != nil {
-		return err
-	}
-	defer mw.Close()
 
 	if mr := e.MultipartReader(); mr != nil {
 		// This is a multipart part, parse and encrypt each part

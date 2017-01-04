@@ -56,9 +56,14 @@ func (u *user) Send(from string, to []string, r io.Reader) error {
 
 		// TODO: do not use a buffer here
 		b := new(bytes.Buffer)
-		if err := pgpmessage.EncryptEntity(b, e, pubkeys, u.kr[0]); err != nil {
+		mw, err := message.CreateWriter(b, e.Header)
+		if err != nil {
 			return err
 		}
+		if err := pgpmessage.EncryptEntity(mw, e, pubkeys, u.kr[0]); err != nil {
+			return err
+		}
+		mw.Close()
 
 		if err := u.User.Send(from, encryptedTo, b); err != nil {
 			return err
