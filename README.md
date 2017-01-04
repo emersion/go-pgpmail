@@ -1,7 +1,8 @@
-# go-imap-pgp
+# go-pgpmail
 
-A [go-imap](https://github.com/emersion/go-imap) backend that encrypts messages
-with PGP.
+A mail library that encrypts messages with PGP. It contains:
+* A [go-imap](https://github.com/emersion/go-imap) backend
+* A [go-smtp](https://github.com/emersion/go-smtp) backend
 
 ## Usage
 
