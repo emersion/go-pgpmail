@@ -5,43 +5,36 @@ import (
 	"io"
 
 	"golang.org/x/crypto/openpgp"
+	"github.com/emersion/go-message"
 
-	"github.com/emersion/go-pgpmail/message"
 	"github.com/emersion/go-pgpmail/pgpmessage"
 )
 
 func decryptMessage(kr openpgp.KeyRing, r io.Reader) (io.Reader, error) {
-	p, err := message.ReadPart(r)
+	e, err := message.Read(r)
 	if err != nil {
 		return nil, err
 	}
 
-	p, err = pgpmessage.DecryptPart(p, kr)
+	e, err = pgpmessage.DecryptEntity(e, kr)
 	if err != nil {
 		return nil, err
 	}
 
-	b := &bytes.Buffer{}
-	mw, err := message.CreateWriter(b, p.Header)
-	if err != nil {
+	b := new(bytes.Buffer)
+	if err := e.WriteTo(b); err != nil {
 		return nil, err
 	}
-	defer mw.Close()
-
-	if _, err := io.Copy(mw, p); err != nil {
-		return nil, err
-	}
-
 	return b, nil
 }
 
 func encryptMessage(kr openpgp.EntityList, w io.Writer, r io.Reader) error {
-	p, err := message.ReadPart(r)
+	e, err := message.Read(r)
 	if err != nil {
 		return err
 	}
 
-	if err := pgpmessage.EncryptPart(w, p, kr, kr[0]); err != nil {
+	if err := pgpmessage.EncryptEntity(w, e, kr, kr[0]); err != nil {
 		return err
 	}
 

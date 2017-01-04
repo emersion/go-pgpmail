@@ -4,7 +4,7 @@ package smtp
 
 import (
 	"github.com/emersion/go-pgp-pubkey"
-	server "github.com/emersion/go-smtp-server"
+	server "github.com/emersion/go-smtp"
 	"golang.org/x/crypto/openpgp"
 )
 

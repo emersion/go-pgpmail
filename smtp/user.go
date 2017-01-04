@@ -1,7 +1,9 @@
 package smtp
 
 import (
-	server "github.com/emersion/go-smtp-server"
+	"io"
+
+	server "github.com/emersion/go-smtp"
 	"golang.org/x/crypto/openpgp"
 )
 
@@ -12,7 +14,7 @@ type user struct {
 	kr openpgp.EntityList
 }
 
-func (u *user) Send(msg *server.Message) error {
+func (u *user) Send(from string, to []string, r io.Reader) error {
 	// TODO
 	return nil
 }
