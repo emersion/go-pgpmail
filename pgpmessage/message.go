@@ -10,28 +10,28 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
-func DecryptEntity(e *message.Entity, kr openpgp.KeyRing) (*message.Entity, error) {
-	if mr := e.MultipartReader(); mr != nil {
-		var parts []*message.Entity
+// TODO: properly set Content-Transfer-Encoding
 
+func decryptEntity(mw *message.Writer, e *message.Entity, kr openpgp.KeyRing) error {
+	if mr := e.MultipartReader(); mr != nil {
 		for {
 			p, err := mr.NextPart()
 			if err == io.EOF {
 				break
 			} else if err != nil {
-				return nil, err
+				return err
 			}
 
-			p, err = DecryptEntity(p, kr)
+			pw, err := mw.CreatePart(p.Header)
 			if err != nil {
-				log.Println("WARN: cannot decrypt child part:", err)
-				continue
+				return err
 			}
 
-			parts = append(parts, p)
+			if err := decryptEntity(pw, p, kr); err != nil {
+				log.Println("WARN: cannot decrypt child part:", err)
+			}
+			pw.Close()
 		}
-
-		return message.NewMultipart(e.Header, parts), nil
 	} else {
 		// A normal part, just decrypt it
 
@@ -56,20 +56,39 @@ func DecryptEntity(e *message.Entity, kr openpgp.KeyRing) (*message.Entity, erro
 			err = nil
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		e := message.NewEntity(e.Header, md.UnverifiedBody)
-		if isPlainText {
-			e.Header.Set("Content-Transfer-Encoding", "quoted-printable")
-		} else {
-			e.Header.Set("Content-Transfer-Encoding", "base64")
+		if _, err := io.Copy(mw, md.UnverifiedBody); err != nil {
+			return err
 		}
-		return e, nil
+
+		// Fail if the signature is incorrect
+		if err := md.SignatureError; err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
-func EncryptEntity(mw *message.Writer, e *message.Entity, to []*openpgp.Entity, signed *openpgp.Entity) error {
+func Decrypt(w io.Writer, r io.Reader, kr openpgp.KeyRing) error {
+	e, err := message.Read(r)
+	if err != nil {
+		return err
+	}
+
+	mw, err := message.CreateWriter(w, e.Header)
+	if err != nil {
+		return err
+	}
+	if err := decryptEntity(mw, e, kr); err != nil {
+		return err
+	}
+	return mw.Close()
+}
+
+func encryptEntity(mw *message.Writer, e *message.Entity, to []*openpgp.Entity, signed *openpgp.Entity) error {
 	// TODO: this function should change headers (e.g. set MIME type to application/pgp-encrypted)
 
 	if mr := e.MultipartReader(); mr != nil {
@@ -84,16 +103,15 @@ func EncryptEntity(mw *message.Writer, e *message.Entity, to []*openpgp.Entity, 
 				return err
 			}
 
-			wc, err := mw.CreatePart(e.Header)
+			pw, err := mw.CreatePart(e.Header)
 			if err != nil {
 				return err
 			}
 
-			if err := EncryptEntity(wc, p, to, signed); err != nil {
+			if err := encryptEntity(pw, p, to, signed); err != nil {
 				return err
 			}
-
-			wc.Close()
+			pw.Close()
 		}
 	} else {
 		// A normal part, just encrypt it
@@ -133,7 +151,7 @@ func Encrypt(w io.Writer, r io.Reader, to []*openpgp.Entity, signed *openpgp.Ent
 	if err != nil {
 		return err
 	}
-	if err := EncryptEntity(mw, e, to, signed); err != nil {
+	if err := encryptEntity(mw, e, to, signed); err != nil {
 		return err
 	}
 	return mw.Close()
