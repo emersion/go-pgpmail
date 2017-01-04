@@ -6,7 +6,6 @@ import (
 
 	server "github.com/emersion/go-smtp"
 	"golang.org/x/crypto/openpgp"
-	"github.com/emersion/go-message"
 
 	"github.com/emersion/go-pgpmail/pgpmessage"
 )
@@ -49,21 +48,11 @@ func (u *user) Send(from string, to []string, r io.Reader) error {
 
 	// Send encrypted message
 	if len(encryptedTo) > 0 {
-		e, err := message.Read(r)
-		if err != nil {
-			return err
-		}
-
 		// TODO: do not use a buffer here
 		b := new(bytes.Buffer)
-		mw, err := message.CreateWriter(b, e.Header)
-		if err != nil {
+		if err := pgpmessage.Encrypt(b, r, pubkeys, u.kr[0]); err != nil {
 			return err
 		}
-		if err := pgpmessage.EncryptEntity(mw, e, pubkeys, u.kr[0]); err != nil {
-			return err
-		}
-		mw.Close()
 
 		if err := u.User.Send(from, encryptedTo, b); err != nil {
 			return err

@@ -122,3 +122,19 @@ func EncryptEntity(mw *message.Writer, e *message.Entity, to []*openpgp.Entity, 
 
 	return nil
 }
+
+func Encrypt(w io.Writer, r io.Reader, to []*openpgp.Entity, signed *openpgp.Entity) error {
+	e, err := message.Read(r)
+	if err != nil {
+		return err
+	}
+
+	mw, err := message.CreateWriter(w, e.Header)
+	if err != nil {
+		return err
+	}
+	if err := EncryptEntity(mw, e, to, signed); err != nil {
+		return err
+	}
+	return mw.Close()
+}

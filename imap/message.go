@@ -21,6 +21,7 @@ func decryptMessage(kr openpgp.KeyRing, r io.Reader) (io.Reader, error) {
 		return nil, err
 	}
 
+	// TODO: do not use a buffer here
 	b := new(bytes.Buffer)
 	if err := e.WriteTo(b); err != nil {
 		return nil, err
@@ -29,20 +30,5 @@ func decryptMessage(kr openpgp.KeyRing, r io.Reader) (io.Reader, error) {
 }
 
 func encryptMessage(kr openpgp.EntityList, w io.Writer, r io.Reader) error {
-	e, err := message.Read(r)
-	if err != nil {
-		return err
-	}
-
-	mw, err := message.CreateWriter(w, e.Header)
-	if err != nil {
-		return err
-	}
-	defer mw.Close()
-
-	if err := pgpmessage.EncryptEntity(mw, e, kr, kr[0]); err != nil {
-		return err
-	}
-
-	return nil
+	return pgpmessage.Encrypt(w, r, kr, kr[0])
 }
