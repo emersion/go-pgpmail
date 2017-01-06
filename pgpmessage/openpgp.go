@@ -1,4 +1,4 @@
-package pgpmail
+package pgpmessage
 
 import (
 	"io"

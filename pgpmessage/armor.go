@@ -1,4 +1,4 @@
-package pgpmail
+package pgpmessage
 
 import (
 	"bufio"
@@ -10,9 +10,9 @@ import (
 )
 
 // Armored type for PGP encrypted messages.
-const pgpmailType = "PGP MESSAGE"
+const pgpMessageType = "PGP MESSAGE"
 
-var armorTag = []byte("-----BEGIN "+pgpmailType+"-----")
+var armorTag = []byte("-----BEGIN "+pgpMessageType+"-----")
 
 func decryptArmored(in io.Reader, kr openpgp.KeyRing) (*openpgp.MessageDetails, error) {
 	br := bufio.NewReaderSize(in, len(armorTag))
@@ -64,7 +64,7 @@ func (w *armorEncryptWriter) Close() (err error) {
 }
 
 func encryptArmored(out io.Writer, to []*openpgp.Entity, signed *openpgp.Entity) (io.WriteCloser, error) {
-	aw, err := armor.Encode(out, pgpmailType, nil)
+	aw, err := armor.Encode(out, pgpMessageType, nil)
 	if err != nil {
 		return nil, err
 	}

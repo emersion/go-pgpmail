@@ -7,7 +7,7 @@ import (
 	server "github.com/emersion/go-smtp"
 	"golang.org/x/crypto/openpgp"
 
-	"github.com/emersion/go-pgpmail/pgpmail"
+	"github.com/emersion/go-pgpmail/pgpmessage"
 )
 
 type user struct {
@@ -50,7 +50,7 @@ func (u *user) Send(from string, to []string, r io.Reader) error {
 	if len(encryptedTo) > 0 {
 		// TODO: do not use a buffer here
 		b := new(bytes.Buffer)
-		if err := pgpmail.Encrypt(b, r, pubkeys, u.kr[0]); err != nil {
+		if err := pgpmessage.Encrypt(b, r, pubkeys, u.kr[0]); err != nil {
 			return err
 		}
 
