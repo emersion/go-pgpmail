@@ -3,7 +3,6 @@ package pgpmessage
 import (
 	"io"
 	"log"
-	"mime"
 	"strings"
 
 	"github.com/emersion/go-message"
@@ -35,12 +34,11 @@ func decryptEntity(mw *message.Writer, e *message.Entity, kr openpgp.KeyRing) er
 	} else {
 		// A normal part, just decrypt it
 
-		mediaType, _, err := mime.ParseMediaType(e.Header.Get("Content-Type"))
+		mediaType, _, err := e.Header.ContentType()
 		if err != nil {
 			log.Println("WARN: cannot parse Content-Type:", err)
 			mediaType = "text/plain"
 		}
-
 		isPlainText := strings.HasPrefix(mediaType, "text/")
 
 		var md *openpgp.MessageDetails
@@ -116,7 +114,7 @@ func encryptEntity(mw *message.Writer, e *message.Entity, to []*openpgp.Entity, 
 	} else {
 		// A normal part, just encrypt it
 
-		disp, _, err := mime.ParseMediaType(e.Header.Get("Content-Disposition"))
+		disp, _, err := e.Header.ContentDisposition()
 		if err != nil {
 			log.Println("WARN: cannot parse Content-Disposition:", err)
 		}
