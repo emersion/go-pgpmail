@@ -30,9 +30,15 @@ func decryptArmored(in io.Reader, kr openpgp.KeyRing) (*openpgp.MessageDetails, 
 		line = bytes.TrimSpace(line)
 	}
 
+	prefix := line
+	if !isPrefix {
+		// isPrefix is set to true if the line was too long to be read entirely
+		prefix = append(prefix, []byte("\r\n")...)
+	}
+
 	// bufio.Reader doesn't consume the newline after the armor tag
-	in = io.MultiReader(bytes.NewReader(line), in)
-	if !isPrefix || !bytes.Equal(line, armorTag) {
+	in = io.MultiReader(bytes.NewReader(prefix), in)
+	if isPrefix || !bytes.Equal(line, armorTag) {
 		// Not encrypted
 		return &openpgp.MessageDetails{UnverifiedBody: in}, nil
 	}
