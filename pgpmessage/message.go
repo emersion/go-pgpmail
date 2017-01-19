@@ -114,13 +114,19 @@ func encryptEntity(mw *message.Writer, e *message.Entity, to []*openpgp.Entity, 
 	} else {
 		// A normal part, just encrypt it
 
+		mediaType, _, err := e.Header.ContentType()
+		if err != nil {
+			log.Println("WARN: cannot parse Content-Type:", err)
+			mediaType = "text/plain"
+		}
+
 		disp, _, err := e.Header.ContentDisposition()
 		if err != nil {
 			log.Println("WARN: cannot parse Content-Disposition:", err)
 		}
 
 		var plaintext io.WriteCloser
-		if strings.HasPrefix(e.Header.Get("Content-Type"), "text/") && disp != "attachment" {
+		if strings.HasPrefix(mediaType, "text/") && disp != "attachment" {
 			// The message text, encrypt it with inline PGP
 			plaintext, err = encryptArmored(mw, to, signed)
 		} else {
