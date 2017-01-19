@@ -9,9 +9,9 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
-// TODO: properly set Content-Transfer-Encoding
-
 func decryptEntity(mw *message.Writer, e *message.Entity, kr openpgp.KeyRing) error {
+	// TODO: this function should change headers
+
 	if mr := e.MultipartReader(); mr != nil {
 		for {
 			p, err := mr.NextPart()

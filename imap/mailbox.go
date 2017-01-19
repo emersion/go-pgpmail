@@ -17,32 +17,44 @@ type mailbox struct {
 }
 
 func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch chan<- *imap.Message) error {
-	// TODO: only intercept messages if fetching body parts
+	// TODO: support imap.BodySectionName.Partial
+	// TODO: support imap.TextSpecifier
+
+	// Only intercept messages if fetching body parts
+	needsDecryption := false
+	for _, item := range items {
+		if _, err := imap.NewBodySectionName(item); err == nil {
+			needsDecryption = true
+			break
+		}
+	}
+	if !needsDecryption {
+		return m.Mailbox.ListMessages(uid, seqSet, items, ch)
+	}
 
 	messages := make(chan *imap.Message)
 	go func() {
 		defer close(ch)
 
 		for msg := range messages {
-			for part, r := range msg.Body {
-				// Cannot decrypt parts without headers
-				if part.Specifier != imap.EntireSpecifier {
+			for section, literal := range msg.Body {
+				if section.Specifier != imap.EntireSpecifier {
 					continue
 				}
 
-				r, err := decryptMessage(m.u.kr, r)
+				r, err := decryptMessage(m.u.kr, literal)
 				if err != nil {
 					log.Println("WARN: cannot decrypt part:", err)
 					continue
 				}
 
-				b := &bytes.Buffer{}
+				b := new(bytes.Buffer)
 				if _, err := io.Copy(b, r); err != nil {
 					log.Println("WARN: cannot decrypt part:", err)
 					continue
 				}
 
-				msg.Body[part] = b
+				msg.Body[section] = b
 			}
 
 			ch <- msg
@@ -53,7 +65,7 @@ func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch
 }
 
 func (m *mailbox) CreateMessage(flags []string, date time.Time, r imap.Literal) error {
-	b := &bytes.Buffer{}
+	b := new(bytes.Buffer)
 	if err := encryptMessage(m.u.kr, b, r); err != nil {
 		return err
 	}
