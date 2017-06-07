@@ -23,7 +23,7 @@ func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch
 	// Only intercept messages if fetching body parts
 	needsDecryption := false
 	for _, item := range items {
-		if _, err := imap.NewBodySectionName(item); err == nil {
+		if _, err := imap.ParseBodySectionName(item); err == nil {
 			needsDecryption = true
 			break
 		}
