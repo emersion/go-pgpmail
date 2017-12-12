@@ -16,7 +16,7 @@ type mailbox struct {
 	u *user
 }
 
-func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []string, ch chan<- *imap.Message) error {
+func (m *mailbox) ListMessages(uid bool, seqSet *imap.SeqSet, items []imap.FetchItem, ch chan<- *imap.Message) error {
 	// TODO: support imap.BodySectionName.Partial
 	// TODO: support imap.TextSpecifier
 
