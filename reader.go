@@ -4,9 +4,9 @@ import (
 	"bufio"
 	"crypto"
 	"fmt"
+	"hash"
 	"io"
 	"mime"
-	"hash"
 	"strings"
 
 	"github.com/emersion/go-message/textproto"
@@ -105,24 +105,13 @@ func newEncryptedReader(h textproto.Header, mr *textproto.MultipartReader, keyri
 	}, nil
 }
 
-// See RFC 4880, section 9.4.
-var hashAlgs = map[string]crypto.Hash{
-	"pgp-md5": crypto.MD5,
-	"pgp-sha1": crypto.SHA1,
-	"pgp-ripemd160": crypto.RIPEMD160,
-	"pgp-sha256": crypto.SHA256,
-	"pgp-sha384": crypto.SHA384,
-	"pgp-sha512": crypto.SHA512,
-	"pgp-sha224": crypto.SHA224,
-}
-
 type signedReader struct {
-	keyring openpgp.KeyRing
+	keyring   openpgp.KeyRing
 	multipart *textproto.MultipartReader
-	signed io.Reader
-	hashFunc crypto.Hash
-	hash hash.Hash
-	md *openpgp.MessageDetails
+	signed    io.Reader
+	hashFunc  crypto.Hash
+	hash      hash.Hash
+	md        *openpgp.MessageDetails
 }
 
 func (r *signedReader) Read(b []byte) (int, error) {
@@ -234,10 +223,10 @@ func newSignedReader(h textproto.Header, mr *textproto.MultipartReader, micalg s
 
 	sr := &signedReader{
 		multipart: mr,
-		signed: p,
-		hashFunc: hashFunc,
-		hash: hash,
-		md: md,
+		signed:    p,
+		hashFunc:  hashFunc,
+		hash:      hash,
+		md:        md,
 	}
 	md.UnverifiedBody = sr
 
