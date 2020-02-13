@@ -45,8 +45,8 @@ func TestReader_encryptedPGPMIME(t *testing.T) {
 	}
 	checkSignature(t, r.MessageDetails)
 
-	if s := buf.String(); s != testCleartext {
-		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testCleartext)
+	if s := buf.String(); s != testEncryptedBody {
+		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testEncryptedBody)
 	}
 }
 
@@ -64,17 +64,34 @@ func TestReader_signedPGPMIME(t *testing.T) {
 
 	checkSignature(t, r.MessageDetails)
 
-	if s := buf.String(); s != testSigned {
-		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testCleartext)
+	if s := buf.String(); s != testSignedBody {
+		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testSignedBody)
 	}
 }
 
-var testCleartext = toCRLF(`Content-Type: text/plain
+func TestReader_plaintext(t *testing.T) {
+	sr := strings.NewReader(testPlaintext)
+	r, err := Read(sr, openpgp.EntityList(nil), nil, nil)
+	if err != nil {
+		t.Fatalf("pgpmail.Read() = %v", err)
+	}
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r.MessageDetails.UnverifiedBody); err != nil {
+		t.Fatalf("io.Copy() = %v", err)
+	}
+
+	if s := buf.String(); s != testPlaintext {
+		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testPlaintext)
+	}
+}
+
+var testEncryptedBody = toCRLF(`Content-Type: text/plain
 
 This is an encrypted message!
 `)
 
-var testSigned = toCRLF(`Content-Type: text/plain
+var testSignedBody = toCRLF(`Content-Type: text/plain
 
 This is a signed message!
 `)
@@ -143,4 +160,12 @@ HVHFb3vTjd71z9j5IGQQ3Awdw30zMg==
 -----END PGP SIGNATURE-----
 
 --bar--
+`)
+
+var testPlaintext = toCRLF(`From: John Doe <john.doe@example.org>
+To: John Doe <john.doe@example.org>
+Mime-Version: 1.0
+Content-Type: text/plain
+
+This is a plaintext message!
 `)
