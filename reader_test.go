@@ -62,6 +62,9 @@ func TestReader_signedPGPMIME(t *testing.T) {
 		t.Fatalf("io.Copy() = %v", err)
 	}
 
+	if r.MessageDetails.IsEncrypted {
+		t.Errorf("MessageDetails.IsEncrypted != false")
+	}
 	checkSignature(t, r.MessageDetails)
 
 	if s := buf.String(); s != testSignedBody {
@@ -79,6 +82,13 @@ func TestReader_plaintext(t *testing.T) {
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, r.MessageDetails.UnverifiedBody); err != nil {
 		t.Fatalf("io.Copy() = %v", err)
+	}
+
+	if r.MessageDetails.IsEncrypted {
+		t.Errorf("MessageDetails.IsEncrypted != false")
+	}
+	if r.MessageDetails.IsSigned {
+		t.Errorf("MessageDetails.IsSigned != false")
 	}
 
 	if s := buf.String(); s != testPlaintext {
