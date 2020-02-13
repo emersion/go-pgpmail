@@ -2,6 +2,7 @@ package pgpmail
 
 import (
 	"bufio"
+	"bytes"
 	"crypto"
 	"fmt"
 	"hash"
@@ -219,7 +220,9 @@ func newSignedReader(h textproto.Header, mr *textproto.MultipartReader, micalg s
 	if err != nil {
 		return nil, fmt.Errorf("pgpmail: failed to read signed part in multipart/signed message: %v", err)
 	}
-	textproto.WriteHeader(hash, p.Header)
+
+	var headerBuf bytes.Buffer
+	textproto.WriteHeader(&headerBuf, p.Header)
 
 	// TODO: convert line endings to CRLF
 
@@ -228,7 +231,7 @@ func newSignedReader(h textproto.Header, mr *textproto.MultipartReader, micalg s
 	sr := &signedReader{
 		keyring:   keyring,
 		multipart: mr,
-		signed:    p,
+		signed:    io.MultiReader(&headerBuf, p),
 		hashFunc:  hashFunc,
 		hash:      hash,
 		md:        md,
