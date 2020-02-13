@@ -10,7 +10,8 @@ import (
 	"golang.org/x/crypto/openpgp/packet"
 )
 
-var testPrivateKey, testPublicKey *openpgp.Entity
+var testPrivateKey = mustReadArmoredEntity(testPrivateKeyArmored)
+var testPublicKey = mustReadArmoredEntity(testPublicKeyArmored)
 
 var testConfig = &packet.Config{
 	Rand: rand.New(rand.NewSource(42)),
@@ -19,22 +20,13 @@ var testConfig = &packet.Config{
 	},
 }
 
-func init() {
-	el, err := openpgp.ReadArmoredKeyRing(strings.NewReader(testPrivateKeyArmored))
+func mustReadArmoredEntity(s string) *openpgp.Entity {
+	el, err := openpgp.ReadArmoredKeyRing(strings.NewReader(s))
 	if err != nil {
-		panic(fmt.Errorf("pgpmail: failed to read test private key: %v", err))
+		panic(fmt.Errorf("pgpmail: failed to read test key: %v", err))
 	}
 	if len(el) != 1 {
-		panic("pgpmail: test private keyring doesn't contain exactly one key")
+		panic("pgpmail: test keyring doesn't contain exactly one key")
 	}
-	testPrivateKey = el[0]
-
-	el, err = openpgp.ReadArmoredKeyRing(strings.NewReader(testPublicKeyArmored))
-	if err != nil {
-		panic(fmt.Errorf("pgpmail: failed to read test public key: %v", err))
-	}
-	if len(el) != 1 {
-		panic("pgpmail: test public keyring doesn't contain exactly one key")
-	}
-	testPublicKey = el[0]
+	return el[0]
 }
