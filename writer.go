@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/packet"
+	"golang.org/x/text/transform"
 )
 
 type multiCloser []io.Closer
@@ -53,7 +54,10 @@ func Encrypt(w io.Writer, h textproto.Header, to []*openpgp.Entity, signed *open
 		return nil, err
 	}
 
-	armorWriter, err := armor.Encode(encryptedWriter, "PGP MESSAGE", nil)
+	// armor uses LF lines endings, but we need CRLF
+	crlfWriter := transform.NewWriter(encryptedWriter, &crlfTransformer{})
+
+	armorWriter, err := armor.Encode(crlfWriter, "PGP MESSAGE", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -162,3 +166,44 @@ func Sign(w io.Writer, header, signedHeader textproto.Header, signed *openpgp.En
 
 	return s, nil
 }
+
+// crlfTranformer transforms lone LF characters with CRLF.
+type crlfTransformer struct {
+	cr bool
+}
+
+func (tr *crlfTransformer) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error) {
+	for _, c := range src {
+		if c == '\r' {
+			tr.cr = true
+		}
+
+		if c == '\n' {
+			if tr.cr {
+				tr.cr = false
+			} else {
+				if nDst+1 >= len(dst) {
+					err = transform.ErrShortDst
+					break
+				}
+				dst[nDst] = '\r'
+				nDst++
+			}
+		}
+
+		if nDst >= len(dst) {
+			err = transform.ErrShortDst
+			break
+		}
+		dst[nDst] = c
+		nDst++
+		nSrc++
+	}
+	return nDst, nSrc, err
+}
+
+func (tr *crlfTransformer) Reset() {
+	tr.cr = false
+}
+
+var _ transform.Transformer = (*crlfTransformer)(nil)
