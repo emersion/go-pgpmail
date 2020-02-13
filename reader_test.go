@@ -3,6 +3,7 @@ package pgpmail
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -69,6 +70,22 @@ func TestReader_signedPGPMIME(t *testing.T) {
 
 	if s := buf.String(); s != testSignedBody {
 		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testSignedBody)
+	}
+}
+
+func TestReader_signedPGPMIMEInvalid(t *testing.T) {
+	sr := strings.NewReader(testPGPMIMESignedInvalid)
+	r, err := Read(sr, openpgp.EntityList{testPrivateKey}, nil, nil)
+	if err != nil {
+		t.Fatalf("pgpmail.Read() = %v", err)
+	}
+
+	if _, err := io.Copy(ioutil.Discard, r.MessageDetails.UnverifiedBody); err != nil {
+		t.Fatalf("io.Copy() = %v", err)
+	}
+
+	if err := r.MessageDetails.SignatureError; err == nil {
+		t.Errorf("MessageDetails.SignatureError = nil")
 	}
 }
 
@@ -153,6 +170,35 @@ Content-Type: multipart/signed; boundary=bar; micalg=pgp-sha256;
 Content-Type: text/plain
 
 This is a signed message!
+
+--bar
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEsahmk1QVO3mfIhe/MHIVwT33qWQFAl5FRLgACgkQMHIVwT33
+qWSEQQf/YgRlKlQzSyvm6A52lGIRU3F/z9EGjhCryxj+hSdPlk8O7iZFIjnco4Ea
+7QIlsOj6D4AlLdhyK6c8IZV7rZoTNE5rc6I5UZjM4Qa0XoyLjao28zR252TtwwWJ
+e4+wrTQKcVhCyHO6rkvcCpru4qF5CU+Mi8+sf8CNJJyBgw1Pri35rJWMdoTPTqqz
+kcIGN1JySaI8bbVitJQmnm0FtFTiB7zznv94rMBCiPmPUWd9BSpSBJteJoBLZ+K7
+Y7ws2Dzp2sBo/RLUM18oXd0N9PLXvFGI3IuF8ey1SPzQH3QbBdJSTmLzRlPjK7A1
+HVHFb3vTjd71z9j5IGQQ3Awdw30zMg==
+=gOul
+-----END PGP SIGNATURE-----
+
+--bar--
+`)
+
+var testPGPMIMESignedInvalid = toCRLF(`From: John Doe <john.doe@example.org>
+To: John Doe <john.doe@example.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary=bar; micalg=pgp-sha256;
+   protocol="application/pgp-signature"
+
+--bar
+Content-Type: text/plain
+
+This is a signed message, but the signature is invalid.
 
 --bar
 Content-Type: application/pgp-signature
