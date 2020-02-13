@@ -3,7 +3,6 @@ package pgpmail
 import (
 	"bytes"
 	"io"
-	"strings"
 	"testing"
 
 	"github.com/emersion/go-message/textproto"
@@ -14,7 +13,7 @@ func init() {
 	forceBoundary = "foo"
 }
 
-var wantEncrypted = strings.ReplaceAll(`Content-Type: multipart/encrypted; boundary=foo;
+var wantEncrypted = toCRLF(`Content-Type: multipart/encrypted; boundary=foo;
  protocol="application/pgp-encrypted"
 To: John Doe <john.doe@example.org>
 From: John Doe <john.doe@example.org>
@@ -48,7 +47,7 @@ ZULA4lZzQyjhfWYA
 =fWkt
 -----END PGP MESSAGE-----
 --foo--
-`, "\n", "\r\n")
+`)
 
 func TestEncrypt(t *testing.T) {
 	var h textproto.Header

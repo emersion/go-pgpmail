@@ -30,3 +30,7 @@ func mustReadArmoredEntity(s string) *openpgp.Entity {
 	}
 	return el[0]
 }
+
+func toCRLF(s string) string {
+	return strings.ReplaceAll(s, "\n", "\r\n")
+}

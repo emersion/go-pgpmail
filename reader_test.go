@@ -9,7 +9,77 @@ import (
 	"golang.org/x/crypto/openpgp"
 )
 
-const testPGPMIMEEncrypted = `From: John Doe <john.doe@example.org>
+func checkSignature(t *testing.T, md *openpgp.MessageDetails) {
+	primaryKeyId := testPrivateKey.PrimaryKey.KeyId
+	if md.SignatureError != nil {
+		t.Errorf("MessageDetails.SignatureError = %v", md.SignatureError)
+	}
+	if !md.IsSigned {
+		t.Errorf("MessageDetails.IsSigned != true")
+	}
+	if md.SignedByKeyId != primaryKeyId {
+		t.Errorf("MessageDetails.SignedByKeyId = %v, want %v", md.SignedByKeyId, primaryKeyId)
+	}
+}
+
+func TestReader_encryptedPGPMIME(t *testing.T) {
+	sr := strings.NewReader(testPGPMIMEEncrypted)
+	r, err := Read(sr, openpgp.EntityList{testPrivateKey}, nil, nil)
+	if err != nil {
+		t.Fatalf("pgpmail.Read() = %v", err)
+	}
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r.MessageDetails.UnverifiedBody); err != nil {
+		t.Fatalf("io.Copy() = %v", err)
+	}
+
+	encryptedTo := testPrivateKey.Subkeys[0].PublicKey.KeyId
+	if !r.MessageDetails.IsEncrypted {
+		t.Errorf("MessageDetails.IsEncrypted != true")
+	}
+	if len(r.MessageDetails.EncryptedToKeyIds) != 1 {
+		t.Errorf("MessageDetails.EncryptedToKeyIds = %v, want exactly one key", r.MessageDetails.EncryptedToKeyIds)
+	} else if r.MessageDetails.EncryptedToKeyIds[0] != encryptedTo {
+		t.Errorf("MessageDetails.EncryptedToKeyIds = %v, want key %v", r.MessageDetails.EncryptedToKeyIds, encryptedTo)
+	}
+	checkSignature(t, r.MessageDetails)
+
+	if s := buf.String(); s != testCleartext {
+		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testCleartext)
+	}
+}
+
+func TestReader_signedPGPMIME(t *testing.T) {
+	sr := strings.NewReader(testPGPMIMESigned)
+	r, err := Read(sr, openpgp.EntityList{testPrivateKey}, nil, nil)
+	if err != nil {
+		t.Fatalf("pgpmail.Read() = %v", err)
+	}
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r.MessageDetails.UnverifiedBody); err != nil {
+		t.Fatalf("io.Copy() = %v", err)
+	}
+
+	checkSignature(t, r.MessageDetails)
+
+	if s := buf.String(); s != testSigned {
+		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testCleartext)
+	}
+}
+
+var testCleartext = toCRLF(`Content-Type: text/plain
+
+This is an encrypted message!
+`)
+
+var testSigned = toCRLF(`Content-Type: text/plain
+
+This is a signed message!
+`)
+
+var testPGPMIMEEncrypted = toCRLF(`From: John Doe <john.doe@example.org>
 To: John Doe <john.doe@example.org>
 Mime-Version: 1.0
 Content-Type: multipart/encrypted; boundary=foo;
@@ -44,46 +114,33 @@ O4sDS4l/8eQTEYUxTavdtQ9O9ZMXvf/L3Rl1uFJXw1lFwPReXwtpA485e031/A==
 -----END PGP MESSAGE-----
 
 --foo--
-`
+`)
 
-var testCleartext = strings.ReplaceAll(`Content-Type: text/plain
+var testPGPMIMESigned = toCRLF(`From: John Doe <john.doe@example.org>
+To: John Doe <john.doe@example.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary=bar; micalg=pgp-sha256;
+   protocol="application/pgp-signature"
 
-This is an encrypted message!
-`, "\n", "\r\n")
+--bar
+Content-Type: text/plain
 
-func TestReader_encryptedPGPMIME(t *testing.T) {
-	sr := strings.NewReader(testPGPMIMEEncrypted)
-	r, err := Read(sr, openpgp.EntityList{testPrivateKey}, nil, nil)
-	if err != nil {
-		t.Fatalf("pgpmail.Read() = %v", err)
-	}
+This is a signed message!
 
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, r.MessageDetails.UnverifiedBody); err != nil {
-		t.Fatalf("io.Copy() = %v", err)
-	}
+--bar
+Content-Type: application/pgp-signature
 
-	encryptedTo := testPrivateKey.Subkeys[0].PublicKey.KeyId
-	primaryKeyId := testPrivateKey.PrimaryKey.KeyId
-	if r.MessageDetails.SignatureError != nil {
-		t.Errorf("MessageDetails.SignatureError = %v", err)
-	}
-	if !r.MessageDetails.IsEncrypted {
-		t.Errorf("MessageDetails.IsEncrypted != true")
-	}
-	if len(r.MessageDetails.EncryptedToKeyIds) != 1 {
-		t.Errorf("MessageDetails.EncryptedToKeyIds = %v, want exactly one key", r.MessageDetails.EncryptedToKeyIds)
-	} else if r.MessageDetails.EncryptedToKeyIds[0] != encryptedTo {
-		t.Errorf("MessageDetails.EncryptedToKeyIds = %v, want key %v", r.MessageDetails.EncryptedToKeyIds, encryptedTo)
-	}
-	if !r.MessageDetails.IsSigned {
-		t.Errorf("MessageDetails.IsSigned != true")
-	}
-	if r.MessageDetails.SignedByKeyId != primaryKeyId {
-		t.Errorf("MessageDetails.SignedByKeyId = %v, want %v", r.MessageDetails.SignedByKeyId, primaryKeyId)
-	}
+-----BEGIN PGP SIGNATURE-----
 
-	if s := buf.String(); s != testCleartext {
-		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testCleartext)
-	}
-}
+iQEzBAABCAAdFiEEsahmk1QVO3mfIhe/MHIVwT33qWQFAl5FRLgACgkQMHIVwT33
+qWSEQQf/YgRlKlQzSyvm6A52lGIRU3F/z9EGjhCryxj+hSdPlk8O7iZFIjnco4Ea
+7QIlsOj6D4AlLdhyK6c8IZV7rZoTNE5rc6I5UZjM4Qa0XoyLjao28zR252TtwwWJ
+e4+wrTQKcVhCyHO6rkvcCpru4qF5CU+Mi8+sf8CNJJyBgw1Pri35rJWMdoTPTqqz
+kcIGN1JySaI8bbVitJQmnm0FtFTiB7zznv94rMBCiPmPUWd9BSpSBJteJoBLZ+K7
+Y7ws2Dzp2sBo/RLUM18oXd0N9PLXvFGI3IuF8ey1SPzQH3QbBdJSTmLzRlPjK7A1
+HVHFb3vTjd71z9j5IGQQ3Awdw30zMg==
+=gOul
+-----END PGP SIGNATURE-----
+
+--bar--
+`)
