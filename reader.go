@@ -37,10 +37,13 @@ func NewReader(h textproto.Header, body io.Reader, keyring openpgp.KeyRing, prom
 		return newSignedReader(h, mr, micalg, keyring, prompt, config)
 	}
 
+	var headerBuf bytes.Buffer
+	textproto.WriteHeader(&headerBuf, h)
+
 	return &Reader{
 		Header: h,
 		MessageDetails: &openpgp.MessageDetails{
-			UnverifiedBody: body,
+			UnverifiedBody: io.MultiReader(&headerBuf, body),
 		},
 	}, nil
 }
