@@ -144,11 +144,12 @@ func (r *signedReader) check() error {
 
 	var p packet.Packet
 	var keys []openpgp.Key
+	var sigErr error
 	pr := packet.NewReader(block.Body)
 	for {
 		p, err = pr.Next()
 		if err == io.EOF {
-			return fmt.Errorf("pgpmail: unknown issuer")
+			break
 		} else if err != nil {
 			return fmt.Errorf("pgpmail: failed to read signature: %v", err)
 		}
@@ -183,21 +184,24 @@ func (r *signedReader) check() error {
 		for i, key := range keys {
 			switch sig := p.(type) {
 			case *packet.Signature:
-				err = key.PublicKey.VerifySignature(r.hash, sig)
+				sigErr = key.PublicKey.VerifySignature(r.hash, sig)
 			case *packet.SignatureV3:
-				err = key.PublicKey.VerifySignatureV3(r.hash, sig)
+				sigErr = key.PublicKey.VerifySignatureV3(r.hash, sig)
 			default:
 				panic("unreachable")
 			}
 
-			if err == nil {
+			if sigErr == nil {
 				r.md.SignedBy = &keys[i]
 				return nil
 			}
 		}
 	}
 
-	panic("unreachable")
+	if sigErr != nil {
+		return sigErr
+	}
+	return fmt.Errorf("pgpmail: unknown issuer")
 }
 
 func newSignedReader(h textproto.Header, mr *textproto.MultipartReader, micalg string, keyring openpgp.KeyRing, prompt openpgp.PromptFunction, config *packet.Config) (*Reader, error) {
@@ -222,6 +226,7 @@ func newSignedReader(h textproto.Header, mr *textproto.MultipartReader, micalg s
 	md := &openpgp.MessageDetails{IsSigned: true}
 
 	sr := &signedReader{
+		keyring:   keyring,
 		multipart: mr,
 		signed:    p,
 		hashFunc:  hashFunc,
