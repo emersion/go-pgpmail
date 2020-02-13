@@ -13,6 +13,9 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// for tests
+var forceBoundary = ""
+
 type multiCloser []io.Closer
 
 func (mc multiCloser) Close() error {
@@ -26,6 +29,10 @@ func (mc multiCloser) Close() error {
 
 func Encrypt(w io.Writer, h textproto.Header, to []*openpgp.Entity, signed *openpgp.Entity, config *packet.Config) (io.WriteCloser, error) {
 	mw := textproto.NewMultipartWriter(w)
+
+	if forceBoundary != "" {
+		mw.SetBoundary(forceBoundary)
+	}
 
 	params := map[string]string{
 		"boundary": mw.Boundary(),
