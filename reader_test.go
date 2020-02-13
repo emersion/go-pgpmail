@@ -53,7 +53,7 @@ func TestReader_encryptedPGPMIME(t *testing.T) {
 
 func TestReader_signedPGPMIME(t *testing.T) {
 	sr := strings.NewReader(testPGPMIMESigned)
-	r, err := Read(sr, openpgp.EntityList{testPrivateKey}, nil, nil)
+	r, err := Read(sr, openpgp.EntityList{testPublicKey}, nil, nil)
 	if err != nil {
 		t.Fatalf("pgpmail.Read() = %v", err)
 	}
