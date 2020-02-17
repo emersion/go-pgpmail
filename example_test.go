@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/emersion/go-message"
+	"github.com/emersion/go-message/mail"
 	"github.com/emersion/go-pgpmail"
 	"golang.org/x/crypto/openpgp"
 )
@@ -43,4 +44,44 @@ func ExampleRead() {
 
 	log.Printf("Signed: %v", pgpReader.MessageDetails.IsSigned)
 	log.Printf("Encrypted: %v", pgpReader.MessageDetails.IsEncrypted)
+}
+
+func ExampleEncrypt() {
+	// to are the recipients' keys, signer is the sender's key
+	var to []*openpgp.Entity
+	var signer *openpgp.Entity
+
+	var mailHeader mail.Header
+	mailHeader.SetAddressList("From", []*mail.Address{{"Mitsuha Miyamizu", "mitsuha.miyamizu@example.org"}})
+	mailHeader.SetAddressList("To", []*mail.Address{{"Taki Tachibana", "taki.tachibana@example.org"}})
+
+	var encryptedHeader mail.Header
+	encryptedHeader.SetContentType("text/plain", nil)
+
+	encryptedText := "Hi! I'm Mitsuha Miyamizu."
+
+	var buf bytes.Buffer
+	cleartext, err := pgpmail.Encrypt(&buf, mailHeader.Header.Header, to, signer, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cleartext.Close()
+
+	body, err := mail.CreateSingleInlineWriter(cleartext, encryptedHeader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer body.Close()
+	if _, err := io.WriteString(cleartext, encryptedText); err != nil {
+		log.Fatal(err)
+	}
+	if err := body.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := cleartext.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Print(buf.String())
 }
