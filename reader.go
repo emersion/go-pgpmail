@@ -13,6 +13,7 @@ import (
 	"github.com/emersion/go-message/textproto"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
+	pgperrors "golang.org/x/crypto/openpgp/errors"
 	"golang.org/x/crypto/openpgp/packet"
 )
 
@@ -205,7 +206,7 @@ func (r *signedReader) check() error {
 	if sigErr != nil {
 		return sigErr
 	}
-	return fmt.Errorf("pgpmail: unknown issuer")
+	return pgperrors.ErrUnknownIssuer
 }
 
 func newSignedReader(h textproto.Header, mr *textproto.MultipartReader, micalg string, keyring openpgp.KeyRing, prompt openpgp.PromptFunction, config *packet.Config) (*Reader, error) {

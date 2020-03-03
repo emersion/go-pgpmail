@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"golang.org/x/crypto/openpgp"
+	pgperrors "golang.org/x/crypto/openpgp/errors"
 )
 
 func checkSignature(t *testing.T, md *openpgp.MessageDetails) {
@@ -86,6 +87,22 @@ func TestReader_signedPGPMIMEInvalid(t *testing.T) {
 
 	if err := r.MessageDetails.SignatureError; err == nil {
 		t.Errorf("MessageDetails.SignatureError = nil")
+	}
+}
+
+func TestReader_signedPGPMIMEUnknownIssuer(t *testing.T) {
+	sr := strings.NewReader(testPGPMIMESigned)
+	r, err := Read(sr, openpgp.EntityList{}, nil, nil)
+	if err != nil {
+		t.Fatalf("pgpmail.Read() = %v", err)
+	}
+
+	if _, err := io.Copy(ioutil.Discard, r.MessageDetails.UnverifiedBody); err != nil {
+		t.Fatalf("io.Copy() = %v", err)
+	}
+
+	if err := r.MessageDetails.SignatureError; err != pgperrors.ErrUnknownIssuer {
+		t.Errorf("MessageDetails.SignatureError = %v, want ErrUnknownIssuer", err)
 	}
 }
 
