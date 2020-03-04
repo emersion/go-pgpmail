@@ -27,8 +27,20 @@ func checkSignature(t *testing.T, md *openpgp.MessageDetails) {
 	}
 }
 
-func TestReader_encryptedPGPMIME(t *testing.T) {
-	sr := strings.NewReader(testPGPMIMEEncrypted)
+func checkEncryption(t *testing.T, md *openpgp.MessageDetails) {
+	encryptedTo := testPrivateKey.Subkeys[0].PublicKey.KeyId
+	if !md.IsEncrypted {
+		t.Errorf("MessageDetails.IsEncrypted != true")
+	}
+	if len(md.EncryptedToKeyIds) != 1 {
+		t.Errorf("MessageDetails.EncryptedToKeyIds = %v, want exactly one key", md.EncryptedToKeyIds)
+	} else if md.EncryptedToKeyIds[0] != encryptedTo {
+		t.Errorf("MessageDetails.EncryptedToKeyIds = %v, want key %v", md.EncryptedToKeyIds, encryptedTo)
+	}
+}
+
+func TestReader_encryptedSignedPGPMIME(t *testing.T) {
+	sr := strings.NewReader(testPGPMIMEEncryptedSigned)
 	r, err := Read(sr, openpgp.EntityList{testPrivateKey}, nil, nil)
 	if err != nil {
 		t.Fatalf("pgpmail.Read() = %v", err)
@@ -39,19 +51,31 @@ func TestReader_encryptedPGPMIME(t *testing.T) {
 		t.Fatalf("io.Copy() = %v", err)
 	}
 
-	encryptedTo := testPrivateKey.Subkeys[0].PublicKey.KeyId
-	if !r.MessageDetails.IsEncrypted {
-		t.Errorf("MessageDetails.IsEncrypted != true")
-	}
-	if len(r.MessageDetails.EncryptedToKeyIds) != 1 {
-		t.Errorf("MessageDetails.EncryptedToKeyIds = %v, want exactly one key", r.MessageDetails.EncryptedToKeyIds)
-	} else if r.MessageDetails.EncryptedToKeyIds[0] != encryptedTo {
-		t.Errorf("MessageDetails.EncryptedToKeyIds = %v, want key %v", r.MessageDetails.EncryptedToKeyIds, encryptedTo)
-	}
 	checkSignature(t, r.MessageDetails)
+	checkEncryption(t, r.MessageDetails)
 
 	if s := buf.String(); s != testEncryptedBody {
 		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testEncryptedBody)
+	}
+}
+
+func TestReader_encryptedSignedEncapsulatedPGPMIME(t *testing.T) {
+	sr := strings.NewReader(testPGPMIMEEncryptedSignedEncapsulated)
+	r, err := Read(sr, openpgp.EntityList{testPrivateKey}, nil, nil)
+	if err != nil {
+		t.Fatalf("pgpmail.Read() = %v", err)
+	}
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r.MessageDetails.UnverifiedBody); err != nil {
+		t.Fatalf("io.Copy() = %v", err)
+	}
+
+	checkSignature(t, r.MessageDetails)
+	checkEncryption(t, r.MessageDetails)
+
+	if s := buf.String(); s != testSignedBody {
+		t.Errorf("MessagesDetails.UnverifiedBody = \n%v\n but want \n%v", s, testSignedBody)
 	}
 }
 
@@ -143,7 +167,7 @@ var testSignedBody = toCRLF(`Content-Type: text/plain
 This is a signed message!
 `)
 
-var testPGPMIMEEncrypted = toCRLF(`From: John Doe <john.doe@example.org>
+var testPGPMIMEEncryptedSigned = toCRLF(`From: John Doe <john.doe@example.org>
 To: John Doe <john.doe@example.org>
 Mime-Version: 1.0
 Content-Type: multipart/encrypted; boundary=foo;
@@ -175,6 +199,47 @@ CTPYPK7UNRmb5s2u5B4e9NiQB9L85W4p7p7uemCSu9bxjs8rkCJpvx9Kb8jzPW17
 wnEUe10A4JNDBhxiMg+Fm5oM2VxQVy+eDVFOOq7pDYVcSmZc36wO+EwAKph9shby
 O4sDS4l/8eQTEYUxTavdtQ9O9ZMXvf/L3Rl1uFJXw1lFwPReXwtpA485e031/A==
 =P0jf
+-----END PGP MESSAGE-----
+
+--foo--
+`)
+
+var testPGPMIMEEncryptedSignedEncapsulated = toCRLF(`From: John Doe <john.doe@example.org>
+To: John Doe <john.doe@example.org>
+Mime-Version: 1.0
+Content-Type: multipart/encrypted; boundary=foo;
+   protocol="application/pgp-encrypted"
+
+--foo
+Content-Type: application/pgp-encrypted
+
+Version: 1
+
+--foo
+Content-Type: application/octet-stream
+
+-----BEGIN PGP MESSAGE-----
+
+hQEMAxF0jxulHQ8+AQf9FCth8p+17rzWL0AtKP+aWndvVUYmaKiUZd+Ya8D9cRnc
+FAP//JnRvTPhdOyl8x1FQkVxyuKcgpjaClb6/OLgD0lGYLC15p43G4QyU+jtOOQW
+FFjZj2z8wUuiev8ejNd7DMiOQRSm4d+IIK+Qa2BJ10Y9AuLQtMI8D+joP1D11NeX
+4FO3SYFEuwH5VWlXGo3bRjg8fKFVG/r/xCwBibqRpfjVnS4EgI04XCsnhqdaCRvE
+Bw2XEaF62m2MUNbaan410WajzVSbSIqIHw8U7vpR/1nisS+SZmScuCXWFa6W9YgR
+0nSWi1io2Ratf4F9ORCy0o7QPh7FlpsIUGmp4paF39LpAQ2q0OUnFhkIdLVQscQT
+JJXLbZwp0CYTAgqwdRWFwY7rEPm2k/Oe4cHKJLEn0hS+X7wch9FAYEMifeqa0FcZ
+GjxocAlyhmlM0sXIDYP8xx49t4O8JIQU1ep/SX2+rUAKIh2WRdYDy8GrrHba8V8U
+aBCU9zIMhmOtu7r+FE1djMUhcaSbbvC9zLDMLV8QxogGhxrqaUM8Pj+q1H6myaAr
+o1xd65b6r2Bph6GUmcMwl28i78u9bKoM0mI+EdUuLwS9EbmjtIwEgxNv4LqK8xw2
+/tjCe9JSqg+HDaBYnO4QTM29Y+PltRIe6RxpnBcYULTLcSt1UK3YV1KvhqfXMjoZ
+THsvtxLbmPYFv+g0hiUpuKtyG9NGidKCxrjvNq30KCSUWzNFkh+qv6CPm26sXr5F
+DTsVpFTM/lomg4Po8sE20BZsk/9IzEh4ERSOu3k0m3mI4QAyJmrOpVGUjd//4cqz
+Zhhc3tV78BtEYNh0a+78fAHGtdLocLj5IfOCYQWW//EtOY93TnVAtP0puaiNOc8q
+Vvb5WMamiRJZ9nQXP3paDoqD14B9X6bvNWsDQDkkrWls2sYg7KzqpOM/nlXLBKQd
+Ok4EJfOpd0hICPwo6tJ6sK2meRcDLxtGJybADE7UHJ4t0SrQBfn/sQhRytQtg2wr
+U1Thy6RujlrrrdUryo3Mi+xc9Ot1o35JszCjNQGL6BCFsGi9fx5pjWM+lLiJ15aJ
+jh02mSd/8j7IaJCGgTuyq6uK45EoVqWd1WRSYl4s5tg1g1jckigYYjJdAKNnU/rZ
+iTk5F8GSyv30EXnqvrs=
+=Ibxd
 -----END PGP MESSAGE-----
 
 --foo--

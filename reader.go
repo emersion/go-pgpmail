@@ -104,6 +104,36 @@ func newEncryptedReader(h textproto.Header, mr *textproto.MultipartReader, keyri
 		return nil, fmt.Errorf("pgpmail: failed to read PGP message: %v", err)
 	}
 
+	cleartext := bufio.NewReader(md.UnverifiedBody)
+	cleartextHeader, err := textproto.ReadHeader(cleartext)
+	if err != nil {
+		return nil, fmt.Errorf("pgpmail: failed to read encrypted header: %v", err)
+	}
+
+	t, params, err := mime.ParseMediaType(cleartextHeader.Get("Content-Type"))
+	if err != nil {
+		return nil, err
+	}
+
+	if md.IsEncrypted && !md.IsSigned && strings.EqualFold(t, "multipart/signed") && strings.EqualFold(params["protocol"], "application/pgp-signature") {
+		// RFC 1847 encapsulation, see RFC 3156 section 6.1
+		micalg := params["micalg"]
+		mr := textproto.NewMultipartReader(cleartext, params["boundary"])
+		sr, err := newSignedReader(cleartextHeader, mr, micalg, keyring, prompt, config)
+		if err != nil {
+			return nil, fmt.Errorf("pgpmail: failed to read encapsulated multipart/signed message: %v", err)
+		}
+		sr.MessageDetails.IsEncrypted = md.IsEncrypted
+		sr.MessageDetails.EncryptedToKeyIds = md.EncryptedToKeyIds
+		sr.MessageDetails.IsSymmetricallyEncrypted = md.IsSymmetricallyEncrypted
+		sr.MessageDetails.DecryptedWith = md.DecryptedWith
+		return sr, nil
+	}
+
+	var headerBuf bytes.Buffer
+	textproto.WriteHeader(&headerBuf, cleartextHeader)
+	md.UnverifiedBody = io.MultiReader(&headerBuf, cleartext)
+
 	return &Reader{
 		Header:         h,
 		MessageDetails: md,
