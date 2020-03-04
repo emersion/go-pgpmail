@@ -19,6 +19,9 @@ func checkSignature(t *testing.T, md *openpgp.MessageDetails) {
 	if !md.IsSigned {
 		t.Errorf("MessageDetails.IsSigned != true")
 	}
+	if md.SignedBy == nil {
+		t.Errorf("MessageDetails.SignedBy == nil")
+	}
 	if md.SignedByKeyId != primaryKeyId {
 		t.Errorf("MessageDetails.SignedByKeyId = %v, want %v", md.SignedByKeyId, primaryKeyId)
 	}
