@@ -2,7 +2,6 @@ package pgpmail
 
 import (
 	"fmt"
-	"math/rand"
 	"strings"
 	"time"
 
@@ -10,11 +9,20 @@ import (
 	"golang.org/x/crypto/openpgp/packet"
 )
 
+type zeroReader struct{}
+
+func (zeroReader) Read(buf []byte) (int, error) {
+	for i := range buf {
+		buf[i] = 0
+	}
+	return len(buf), nil
+}
+
 var testPrivateKey = mustReadArmoredEntity(testPrivateKeyArmored)
 var testPublicKey = mustReadArmoredEntity(testPublicKeyArmored)
 
 var testConfig = &packet.Config{
-	Rand: rand.New(rand.NewSource(42)),
+	Rand: &zeroReader{},
 	Time: func() time.Time {
 		return time.Date(2020, 2, 13, 0, 0, 0, 0, time.UTC)
 	},
