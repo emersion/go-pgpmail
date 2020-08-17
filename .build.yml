@@ -1,0 +1,12 @@
+image: alpine/edge
+packages:
+  - go
+sources:
+  - https://github.com/emersion/go-pgpmail
+tasks:
+  - build: |
+      cd go-pgpmail
+      go build -v ./...
+  - test: |
+      cd go-pgpmail
+      go test -v ./...
