@@ -85,3 +85,34 @@ func ExampleEncrypt() {
 
 	log.Print(buf.String())
 }
+
+func ExampleSign() {
+	// signer is the sender's key
+	var signer *openpgp.Entity
+
+	var mailHeader mail.Header
+	mailHeader.SetAddressList("From", []*mail.Address{{"Mitsuha Miyamizu", "mitsuha.miyamizu@example.org"}})
+	mailHeader.SetAddressList("To", []*mail.Address{{"Taki Tachibana", "taki.tachibana@example.org"}})
+
+	var signedHeader mail.Header
+	signedHeader.SetContentType("text/plain", nil)
+
+	signedText := "Hi! I'm Mitsuha Miyamizu."
+
+	var buf bytes.Buffer
+	cleartext, err := pgpmail.Sign(&buf, mailHeader.Header.Header, signedHeader.Header.Header, signer, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cleartext.Close()
+
+	if _, err := io.WriteString(cleartext, signedText); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := cleartext.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Print(buf.String())
+}
