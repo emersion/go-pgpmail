@@ -72,7 +72,7 @@ func ExampleEncrypt() {
 		log.Fatal(err)
 	}
 	defer body.Close()
-	if _, err := io.WriteString(cleartext, encryptedText); err != nil {
+	if _, err := io.WriteString(body, encryptedText); err != nil {
 		log.Fatal(err)
 	}
 	if err := body.Close(); err != nil {
