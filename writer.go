@@ -165,7 +165,7 @@ func Sign(w io.Writer, header, signedHeader textproto.Header, signed *openpgp.En
 	pr, pw := io.Pipe()
 	done := make(chan error, 1)
 	s := &signer{
-		Writer: signedWriter,
+		Writer: io.MultiWriter(pw, signedWriter),
 		pw:     pw,
 		done:   done,
 		mw:     mw,
@@ -174,6 +174,11 @@ func Sign(w io.Writer, header, signedHeader textproto.Header, signed *openpgp.En
 	go func() {
 		done <- openpgp.DetachSign(&s.sigBuf, signed, pr, config)
 	}()
+
+	if err := textproto.WriteHeader(pw, signedHeader); err != nil {
+		pw.Close()
+		return nil, err
+	}
 
 	return s, nil
 }
