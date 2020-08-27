@@ -112,7 +112,10 @@ func (s *signer) Close() error {
 		return err
 	}
 
-	armorWriter, err := armor.Encode(sigWriter, "PGP MESSAGE", nil)
+	// armor uses LF lines endings, but we need CRLF
+	crlfWriter := transform.NewWriter(sigWriter, &crlfTransformer{})
+
+	armorWriter, err := armor.Encode(crlfWriter, "PGP MESSAGE", nil)
 	if err != nil {
 		return err
 	}
