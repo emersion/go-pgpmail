@@ -48,6 +48,31 @@ uX9lm1jXaMF9uWaMbZS4nUMSxYUPUH3m3jF+EprSA0KEn+QMdXQ7uIQJEDYXZbCL
 --foo--
 `)
 
+var wantSigned = toCRLF(`Content-Type: multipart/signed; boundary=foo; micalg=pgp-sha256;
+ protocol="application/pgp-signature"
+To: John Doe <john.doe@example.org>
+From: John Doe <john.doe@example.org>
+
+--foo
+Content-Type: text/plain
+
+This is a signed message!
+--foo
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP MESSAGE-----
+
+wsBcBAABCAAQBQJeRJGACRAwchXBPfepZAAA5Z4IADF132czF1jgelC07XfICiE9
+Vs1Y4x8G1ATwMOBiJGksIiPM0FoYRUat88bgSC0H/vX3pCC8vVR+1VFBAvN0oTit
+33k+/VAgs0bKJ+Aufc89Dw/aKaJc6YTXGtDMpVZO5i4PchM+FEVoFaIdxRXBwB7s
+3eIMgIC+E4J9Z3s70guKYnnB0EOBNZm60XO6asYpwLr+48tzUaEC3fn150jP8Oog
+ZZ6/CRPeITuImRrbZEOiH1ASwm92MGWbLEh3fR78UoIgWty5hDyO65JDoKrER2oE
+3Nm4liaIoOqCMq8bD6e/ntm0ZaPQPV0Ij4jswXJ6aZevSpYZOkTxXA9smL+lhjc=
+=HHGH
+-----END PGP MESSAGE-----
+--foo--
+`)
+
 func TestEncrypt(t *testing.T) {
 	var h textproto.Header
 	h.Set("From", "John Doe <john.doe@example.org>")
@@ -79,5 +104,34 @@ func TestEncrypt(t *testing.T) {
 
 	if s := buf.String(); s != wantEncrypted {
 		t.Errorf("Encrypt() = \n%v\n but want \n%v", s, wantEncrypted)
+	}
+}
+
+func TestSign(t *testing.T) {
+	var h textproto.Header
+	h.Set("From", "John Doe <john.doe@example.org>")
+	h.Set("To", "John Doe <john.doe@example.org>")
+
+	var signedHeader textproto.Header
+	signedHeader.Set("Content-Type", "text/plain")
+
+	var signedBody = "This is a signed message!"
+
+	var buf bytes.Buffer
+	cleartext, err := Sign(&buf, h, signedHeader, testPrivateKey, testConfig)
+	if err != nil {
+		t.Fatalf("Encrypt() = %v", err)
+	}
+
+	if _, err := io.WriteString(cleartext, signedBody); err != nil {
+		t.Fatalf("io.WriteString() = %v", err)
+	}
+
+	if err := cleartext.Close(); err != nil {
+		t.Fatalf("ciphertext.Close() = %v", err)
+	}
+
+	if s := buf.String(); s != wantSigned {
+		t.Errorf("Encrypt() = \n%q\n but want \n%q", s, wantSigned)
 	}
 }
