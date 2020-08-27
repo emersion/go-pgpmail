@@ -130,6 +130,10 @@ func (s *signer) Close() error {
 func Sign(w io.Writer, header, signedHeader textproto.Header, signed *openpgp.Entity, config *packet.Config) (io.WriteCloser, error) {
 	mw := textproto.NewMultipartWriter(w)
 
+	if forceBoundary != "" {
+		mw.SetBoundary(forceBoundary)
+	}
+
 	var micalg string
 	for name, hash := range hashAlgs {
 		if hash == config.Hash() {
