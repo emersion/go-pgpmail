@@ -1,6 +1,7 @@
 package pgpmail
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -136,7 +137,10 @@ func (s *signer) Close() error {
 	return s.mw.Close()
 }
 
-func Sign(w io.Writer, header, signedHeader textproto.Header, signed *openpgp.Entity, config *packet.Config) (io.WriteCloser, error) {
+func Sign(w io.Writer, header textproto.Header, signed *openpgp.Entity, config *packet.Config) (io.WriteCloser, error) {
+	// We need to grab the header written to the returned io.WriteCloser, then
+	// use it to create a new part in the multipart/signed message
+
 	mw := textproto.NewMultipartWriter(w)
 
 	if forceBoundary != "" {
@@ -165,31 +169,124 @@ func Sign(w io.Writer, header, signedHeader textproto.Header, signed *openpgp.En
 		return nil, err
 	}
 
-	signedWriter, err := mw.CreatePart(signedHeader)
+	handleHeader := func(signedHeader textproto.Header) (io.WriteCloser, error) {
+		signedWriter, err := mw.CreatePart(signedHeader)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: canonicalize text written to signedWriter
+
+		pr, pw := io.Pipe()
+		done := make(chan error, 1)
+		s := &signer{
+			Writer: io.MultiWriter(pw, signedWriter),
+			pw:     pw,
+			done:   done,
+			mw:     mw,
+		}
+
+		go func() {
+			done <- openpgp.DetachSign(&s.sigBuf, signed, pr, config)
+		}()
+
+		if err := textproto.WriteHeader(pw, signedHeader); err != nil {
+			pw.Close()
+			return nil, err
+		}
+
+		return s, nil
+	}
+
+	return &headerWriter{handle: handleHeader}, nil
+}
+
+var (
+	doubleCRLF = []byte("\r\n\r\n")
+	doubleLF   = []byte("\n\n")
+)
+
+func hasDoubleCRLFSuffix(b []byte) bool {
+	return bytes.HasSuffix(b, doubleCRLF) || bytes.HasSuffix(b, doubleLF)
+}
+
+// headerWriter collects a header written to itself, calls handle, and writes the
+// body to the returned io.WriteCloser.
+//
+// If handle returns an io.WriteCloser, its Close method is guaranteed to be
+// called when the headerWriter is closed.
+type headerWriter struct {
+	handle func(textproto.Header) (io.WriteCloser, error)
+
+	headerBuf      bytes.Buffer
+	headerComplete bool
+	bodyWriter     io.WriteCloser
+	err            error
+}
+
+func (hw *headerWriter) Write(buf []byte) (int, error) {
+	if hw.headerComplete {
+		if hw.err != nil {
+			return 0, hw.err
+		}
+		return hw.bodyWriter.Write(buf)
+	}
+
+	hw.headerBuf.Grow(len(buf))
+
+	gotDoubleCRLF := false
+	N := 0
+	for _, b := range buf {
+		hw.headerBuf.WriteByte(b)
+		N++
+
+		if b == '\n' && hasDoubleCRLFSuffix(hw.headerBuf.Bytes()) {
+			gotDoubleCRLF = true
+			break
+		}
+	}
+
+	if gotDoubleCRLF {
+		if err := hw.parseHeader(); err != nil {
+			return N, err
+		}
+
+		n, err := hw.bodyWriter.Write(buf[N:])
+		return N + n, err
+	}
+
+	return N, nil
+}
+
+func (hw *headerWriter) Close() error {
+	// Ensure we always close the underlying io.WriterCloser, to avoid leaking
+	// resources
+	if hw.bodyWriter != nil {
+		defer hw.bodyWriter.Close()
+	}
+
+	if !hw.headerComplete {
+		if err := hw.parseHeader(); err != nil {
+			return err
+		}
+	}
+
+	if hw.err != nil {
+		return hw.err
+	}
+	return hw.bodyWriter.Close()
+}
+
+func (hw *headerWriter) parseHeader() error {
+	hw.headerComplete = true
+
+	h, err := textproto.ReadHeader(bufio.NewReader(&hw.headerBuf))
 	if err != nil {
-		return nil, err
-	}
-	// TODO: canonicalize text written to signedWriter
-
-	pr, pw := io.Pipe()
-	done := make(chan error, 1)
-	s := &signer{
-		Writer: io.MultiWriter(pw, signedWriter),
-		pw:     pw,
-		done:   done,
-		mw:     mw,
+		hw.err = err
+		return err
 	}
 
-	go func() {
-		done <- openpgp.DetachSign(&s.sigBuf, signed, pr, config)
-	}()
-
-	if err := textproto.WriteHeader(pw, signedHeader); err != nil {
-		pw.Close()
-		return nil, err
-	}
-
-	return s, nil
+	hw.bodyWriter, hw.err = hw.handle(h)
+	return hw.err
 }
 
 // crlfTranformer transforms lone LF characters with CRLF.

@@ -100,13 +100,21 @@ func ExampleSign() {
 	signedText := "Hi! I'm Mitsuha Miyamizu."
 
 	var buf bytes.Buffer
-	cleartext, err := pgpmail.Sign(&buf, mailHeader.Header.Header, signedHeader.Header.Header, signer, nil)
+	cleartext, err := pgpmail.Sign(&buf, mailHeader.Header.Header, signer, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer cleartext.Close()
 
-	if _, err := io.WriteString(cleartext, signedText); err != nil {
+	body, err := mail.CreateSingleInlineWriter(cleartext, signedHeader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer body.Close()
+	if _, err := io.WriteString(body, signedText); err != nil {
+		log.Fatal(err)
+	}
+	if err := body.Close(); err != nil {
 		log.Fatal(err)
 	}
 

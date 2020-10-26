@@ -58,11 +58,14 @@ func TestSign(t *testing.T) {
 	var signedBody = "This is a signed message!"
 
 	var buf bytes.Buffer
-	cleartext, err := Sign(&buf, h, signedHeader, testPrivateKey, testConfig)
+	cleartext, err := Sign(&buf, h, testPrivateKey, testConfig)
 	if err != nil {
 		t.Fatalf("Encrypt() = %v", err)
 	}
 
+	if err := textproto.WriteHeader(cleartext, signedHeader); err != nil {
+		t.Fatalf("textproto.WriteHeader() = %v", err)
+	}
 	if _, err := io.WriteString(cleartext, signedBody); err != nil {
 		t.Fatalf("io.WriteString() = %v", err)
 	}
