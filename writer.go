@@ -93,9 +93,15 @@ type signer struct {
 	done   <-chan error
 	sigBuf bytes.Buffer
 	mw     *textproto.MultipartWriter
+	closed bool
 }
 
 func (s *signer) Close() error {
+	if s.closed {
+		return fmt.Errorf("pgpmail: signer already closed")
+	}
+	s.closed = true
+
 	// Close the pipe to let openpgp.DetachSign finish
 	if err := s.pw.Close(); err != nil {
 		return err
