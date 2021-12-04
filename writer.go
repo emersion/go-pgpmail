@@ -186,7 +186,10 @@ func Sign(w io.Writer, header textproto.Header, signed *openpgp.Entity, config *
 		}
 
 		go func() {
-			done <- openpgp.DetachSign(&s.sigBuf, signed, pr, config)
+			err := openpgp.DetachSign(&s.sigBuf, signed, pr, config)
+			// Close the pipe to make sure textproto.WriteHeader doesn't block
+			pr.CloseWithError(err)
+			done <- err
 		}()
 
 		if err := textproto.WriteHeader(pw, signedHeader); err != nil {
