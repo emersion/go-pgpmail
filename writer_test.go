@@ -75,7 +75,7 @@ func TestSign(t *testing.T) {
 	}
 
 	if s := buf.String(); s != wantSigned {
-		t.Errorf("Encrypt() = \n%q\n but want \n%q", s, wantSigned)
+		t.Errorf("Encrypt() = \n%v\n but want \n%v", s, wantSigned)
 	}
 }
 
