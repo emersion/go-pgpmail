@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/crypto/openpgp"
-	pgperrors "golang.org/x/crypto/openpgp/errors"
+	"github.com/ProtonMail/go-crypto/openpgp"
+	pgperrors "github.com/ProtonMail/go-crypto/openpgp/errors"
 )
 
 func checkSignature(t *testing.T, md *openpgp.MessageDetails) {

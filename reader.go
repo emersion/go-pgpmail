@@ -10,11 +10,11 @@ import (
 	"mime"
 	"strings"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
+	pgperrors "github.com/ProtonMail/go-crypto/openpgp/errors"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	"github.com/emersion/go-message/textproto"
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/armor"
-	pgperrors "golang.org/x/crypto/openpgp/errors"
-	"golang.org/x/crypto/openpgp/packet"
 )
 
 type Reader struct {
@@ -189,21 +189,17 @@ func (r *signedReader) check() error {
 			return fmt.Errorf("pgpmail: failed to read signature: %v", err)
 		}
 
-		var issuerKeyId uint64
-		var hashFunc crypto.Hash
-		switch sig := p.(type) {
-		case *packet.Signature:
-			if sig.IssuerKeyId == nil {
-				return fmt.Errorf("pgpmail: signature doesn't have an issuer")
-			}
-			issuerKeyId = *sig.IssuerKeyId
-			hashFunc = sig.Hash
-		case *packet.SignatureV3:
-			issuerKeyId = sig.IssuerKeyId
-			hashFunc = sig.Hash
-		default:
+		sig, ok := p.(*packet.Signature)
+		if !ok {
 			return fmt.Errorf("pgpmail: non signature packet found")
 		}
+
+		if sig.IssuerKeyId == nil {
+			return fmt.Errorf("pgpmail: signature doesn't have an issuer")
+		}
+
+		issuerKeyId := *sig.IssuerKeyId
+		hashFunc := sig.Hash
 
 		r.md.SignedByKeyId = issuerKeyId
 
@@ -217,15 +213,7 @@ func (r *signedReader) check() error {
 		}
 
 		for i, key := range keys {
-			switch sig := p.(type) {
-			case *packet.Signature:
-				sigErr = key.PublicKey.VerifySignature(r.hash, sig)
-			case *packet.SignatureV3:
-				sigErr = key.PublicKey.VerifySignatureV3(r.hash, sig)
-			default:
-				panic("unreachable")
-			}
-
+			sigErr := key.PublicKey.VerifySignature(r.hash, sig)
 			if sigErr == nil {
 				r.md.SignedBy = &keys[i]
 				return nil

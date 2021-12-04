@@ -7,10 +7,10 @@ import (
 	"io"
 	"mime"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/armor"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	"github.com/emersion/go-message/textproto"
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/armor"
-	"golang.org/x/crypto/openpgp/packet"
 	"golang.org/x/text/transform"
 )
 
@@ -70,7 +70,7 @@ func Encrypt(w io.Writer, h textproto.Header, to []*openpgp.Entity, signed *open
 		return nil, err
 	}
 
-	plaintext, err := openpgp.Encrypt(armorWriter, to, signed, nil, config)
+	plaintext, err := openpgp.EncryptText(armorWriter, to, signed, nil, config)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func Sign(w io.Writer, header textproto.Header, signed *openpgp.Entity, config *
 		}
 
 		go func() {
-			err := openpgp.DetachSign(&s.sigBuf, signed, pr, config)
+			err := openpgp.DetachSignText(&s.sigBuf, signed, pr, config)
 			// Close the pipe to make sure textproto.WriteHeader doesn't block
 			pr.CloseWithError(err)
 			done <- err

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/openpgp"
-	"golang.org/x/crypto/openpgp/packet"
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
 
 type zeroReader struct{}
@@ -24,7 +24,7 @@ var testPublicKey = mustReadArmoredEntity(testPublicKeyArmored)
 var testConfig = &packet.Config{
 	Rand: &zeroReader{},
 	Time: func() time.Time {
-		return time.Date(2020, 2, 13, 0, 0, 0, 0, time.UTC)
+		return time.Date(2020, 2, 20, 0, 0, 0, 0, time.UTC)
 	},
 }
 

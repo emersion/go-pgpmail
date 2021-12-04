@@ -3,7 +3,8 @@ module github.com/emersion/go-pgpmail
 go 1.12
 
 require (
-	github.com/emersion/go-message v0.11.1
-	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
-	golang.org/x/text v0.3.2
+	github.com/ProtonMail/go-crypto v0.0.0-20211112122917-428f8eabeeb3
+	github.com/emersion/go-message v0.15.0
+	golang.org/x/crypto v0.0.0-20211202192323-5770296d904e // indirect
+	golang.org/x/text v0.3.7
 )
