@@ -228,6 +228,7 @@ func (r *signedReader) check() error {
 }
 
 func newSignedReader(h textproto.Header, mr *textproto.MultipartReader, micalg string, keyring openpgp.KeyRing, prompt openpgp.PromptFunction, config *packet.Config) (*Reader, error) {
+	micalg = strings.ToLower(micalg)
 	hashFunc, ok := hashAlgs[micalg]
 	if !ok {
 		return nil, fmt.Errorf("pgpmail: unsupported micalg %q", micalg)
