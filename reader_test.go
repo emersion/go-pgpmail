@@ -248,7 +248,7 @@ iTk5F8GSyv30EXnqvrs=
 var testPGPMIMESigned = toCRLF(`From: John Doe <john.doe@example.org>
 To: John Doe <john.doe@example.org>
 Mime-Version: 1.0
-Content-Type: multipart/signed; boundary=bar; micalg=pgp-sha256;
+Content-Type: multipart/signed; boundary=bar; micalg=pgp-SHA256;
    protocol="application/pgp-signature"
 
 --bar
