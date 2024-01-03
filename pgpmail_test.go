@@ -1,6 +1,7 @@
 package pgpmail
 
 import (
+	_ "embed"
 	"fmt"
 	"strings"
 	"time"
@@ -8,6 +9,12 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
+
+//go:embed testdata/private_key.asc
+var testPrivateKeyArmored string
+
+//go:embed testdata/public_key.asc
+var testPublicKeyArmored string
 
 type zeroReader struct{}
 
