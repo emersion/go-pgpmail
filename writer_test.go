@@ -119,7 +119,8 @@ func formatMessage(h textproto.Header, body string) string {
 	return sb.String()
 }
 
-var wantEncryptedPrefix = toCRLF(`Content-Type: multipart/encrypted; boundary=foo;
+var wantEncryptedPrefix = toCRLF(`Mime-Version: 1.0
+Content-Type: multipart/encrypted; boundary=foo;
  protocol="application/pgp-encrypted"
 To: John Doe <john.doe@example.org>
 From: John Doe <john.doe@example.org>
@@ -140,7 +141,8 @@ var wantEncryptedSuffix = toCRLF(`
 --foo--
 `)
 
-var wantSignedPrefix = toCRLF(`Content-Type: multipart/signed; boundary=foo; micalg=pgp-sha256;
+var wantSignedPrefix = toCRLF(`Mime-Version: 1.0
+Content-Type: multipart/signed; boundary=foo; micalg=pgp-sha256;
  protocol="application/pgp-signature"
 To: John Doe <john.doe@example.org>
 From: John Doe <john.doe@example.org>
