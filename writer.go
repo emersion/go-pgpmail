@@ -41,6 +41,10 @@ func Encrypt(w io.Writer, h textproto.Header, to []*openpgp.Entity, signed *open
 	}
 	h.Set("Content-Type", mime.FormatMediaType("multipart/encrypted", params))
 
+	if !h.Has("Mime-Version") {
+		h.Set("Mime-Version", "1.0")
+	}
+
 	if err := textproto.WriteHeader(w, h); err != nil {
 		return nil, err
 	}
@@ -70,22 +74,35 @@ func Encrypt(w io.Writer, h textproto.Header, to []*openpgp.Entity, signed *open
 		return nil, err
 	}
 
-	plaintext, err := openpgp.EncryptText(armorWriter, to, signed, nil, config)
-	if err != nil {
-		return nil, err
-	}
+	handleHeader := func(encryptedHeader textproto.Header) (io.WriteCloser, error) {
+		encryptedHeader.Del("Mime-Version")
 
-	return struct {
-		io.Writer
-		io.Closer
-	}{
-		plaintext,
-		multiCloser{
+		plaintext, err := openpgp.EncryptText(armorWriter, to, signed, nil, config)
+		if err != nil {
+			return nil, err
+		}
+
+		var closer io.Closer = multiCloser{
 			plaintext,
 			armorWriter,
 			mw,
-		},
-	}, nil
+		}
+
+		if err := textproto.WriteHeader(plaintext, encryptedHeader); err != nil {
+			closer.Close()
+			return nil, err
+		}
+
+		return struct {
+			io.Writer
+			io.Closer
+		}{
+			Writer: plaintext,
+			Closer: closer,
+		}, nil
+	}
+
+	return &headerWriter{handle: handleHeader}, nil
 }
 
 type signer struct {
@@ -165,11 +182,17 @@ func Sign(w io.Writer, header textproto.Header, signed *openpgp.Entity, config *
 	}
 	header.Set("Content-Type", mime.FormatMediaType("multipart/signed", params))
 
+	if !header.Has("Mime-Version") {
+		header.Set("Mime-Version", "1.0")
+	}
+
 	if err := textproto.WriteHeader(w, header); err != nil {
 		return nil, err
 	}
 
 	handleHeader := func(signedHeader textproto.Header) (io.WriteCloser, error) {
+		signedHeader.Del("Mime-Version")
+
 		signedWriter, err := mw.CreatePart(signedHeader)
 		if err != nil {
 			return nil, err
