@@ -41,6 +41,10 @@ func Encrypt(w io.Writer, h textproto.Header, to []*openpgp.Entity, signed *open
 	}
 	h.Set("Content-Type", mime.FormatMediaType("multipart/encrypted", params))
 
+	if !h.Has("Mime-Version") {
+		h.Set("Mime-Version", "1.0")
+	}
+
 	if err := textproto.WriteHeader(w, h); err != nil {
 		return nil, err
 	}
@@ -165,11 +169,17 @@ func Sign(w io.Writer, header textproto.Header, signed *openpgp.Entity, config *
 	}
 	header.Set("Content-Type", mime.FormatMediaType("multipart/signed", params))
 
+	if !header.Has("Mime-Version") {
+		header.Set("Mime-Version", "1.0")
+	}
+
 	if err := textproto.WriteHeader(w, header); err != nil {
 		return nil, err
 	}
 
 	handleHeader := func(signedHeader textproto.Header) (io.WriteCloser, error) {
+		signedHeader.Del("Mime-Version")
+
 		signedWriter, err := mw.CreatePart(signedHeader)
 		if err != nil {
 			return nil, err
